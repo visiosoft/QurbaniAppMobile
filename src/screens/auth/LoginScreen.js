@@ -62,11 +62,19 @@ const LoginScreen = () => {
             });
 
             if (!result.success) {
-                Alert.alert('Login Failed', result.error || 'Invalid credentials');
+                if (Platform.OS === 'web') {
+                    window.alert('Login Failed: ' + (result.error || 'Invalid credentials'));
+                } else {
+                    Alert.alert('Login Failed', result.error || 'Invalid credentials');
+                }
             }
             // If successful, navigation will happen automatically via AuthContext
         } catch (error) {
-            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+            if (Platform.OS === 'web') {
+                window.alert('Error: An unexpected error occurred. Please try again.');
+            } else {
+                Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+            }
             console.error('Login error:', error);
         } finally {
             setIsLoading(false);

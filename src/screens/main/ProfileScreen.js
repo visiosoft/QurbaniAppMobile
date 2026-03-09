@@ -6,6 +6,7 @@ import {
     ScrollView,
     Alert,
     Switch,
+    Platform,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import userService from '../../services/userService';
@@ -93,11 +94,19 @@ const ProfileScreen = () => {
             // Update user in context
             updateUser(updatedUser);
 
-            Alert.alert('Success', 'Profile updated successfully!');
+            if (Platform.OS === 'web') {
+                window.alert('Profile updated successfully!');
+            } else {
+                Alert.alert('Success', 'Profile updated successfully!');
+            }
             setIsEditing(false);
         } catch (error) {
             console.error('Error updating profile:', error);
-            Alert.alert('Error', error.message || 'Failed to update profile.');
+            if (Platform.OS === 'web') {
+                window.alert('Error: ' + (error.message || 'Failed to update profile.'));
+            } else {
+                Alert.alert('Error', error.message || 'Failed to update profile.');
+            }
         } finally {
             setIsSaving(false);
         }
@@ -118,13 +127,25 @@ const ProfileScreen = () => {
             if (value) {
                 // Register for push notifications
                 await notificationService.registerForPushNotifications();
-                Alert.alert('Notifications Enabled', 'You will receive notifications about your Qurbani status.');
+                if (Platform.OS === 'web') {
+                    window.alert('Notifications Enabled\nYou will receive notifications about your Qurbani status.');
+                } else {
+                    Alert.alert('Notifications Enabled', 'You will receive notifications about your Qurbani status.');
+                }
             } else {
-                Alert.alert('Notifications Disabled', 'You will not receive push notifications.');
+                if (Platform.OS === 'web') {
+                    window.alert('Notifications Disabled\nYou will not receive push notifications.');
+                } else {
+                    Alert.alert('Notifications Disabled', 'You will not receive push notifications.');
+                }
             }
         } catch (error) {
             console.error('Error updating notification preference:', error);
-            Alert.alert('Error', 'Failed to update notification preferences.');
+            if (Platform.OS === 'web') {
+                window.alert('Error: Failed to update notification preferences.');
+            } else {
+                Alert.alert('Error', 'Failed to update notification preferences.');
+            }
             // Revert toggle
             setNotificationsEnabled(!value);
         }
@@ -232,14 +253,21 @@ const ProfileScreen = () => {
             <Button
                 title="Logout"
                 onPress={() => {
-                    Alert.alert(
-                        'Logout',
-                        'Are you sure you want to logout?',
-                        [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Logout', onPress: logout, style: 'destructive' },
-                        ]
-                    );
+                    if (Platform.OS === 'web') {
+                        const confirmed = window.confirm('Are you sure you want to logout?');
+                        if (confirmed) {
+                            logout();
+                        }
+                    } else {
+                        Alert.alert(
+                            'Logout',
+                            'Are you sure you want to logout?',
+                            [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Logout', onPress: logout, style: 'destructive' },
+                            ]
+                        );
+                    }
                 }}
                 variant="danger"
                 style={styles.logoutButton}

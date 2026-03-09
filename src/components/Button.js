@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import { Pressable, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../config/constants';
 
 /**
@@ -53,16 +53,16 @@ const Button = ({
     };
 
     return (
-        <TouchableOpacity
-            style={[
+        <Pressable
+            style={({ pressed }) => [
                 styles.button,
                 { backgroundColor: getBackgroundColor() },
                 getBorderStyle(),
+                pressed && !disabled && !loading && { opacity: 0.7 },
                 style,
             ]}
             onPress={onPress}
             disabled={disabled || loading}
-            activeOpacity={0.7}
         >
             {loading ? (
                 <ActivityIndicator color={getTextColor()} />
@@ -74,7 +74,7 @@ const Button = ({
                     </Text>
                 </View>
             )}
-        </TouchableOpacity>
+        </Pressable>
     );
 };
 
@@ -86,6 +86,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: 50,
+        cursor: 'pointer',
+        userSelect: 'none',
     },
     buttonContent: {
         flexDirection: 'row',

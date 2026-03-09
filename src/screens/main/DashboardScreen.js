@@ -16,6 +16,8 @@ import {
     Image,
     ScrollView,
     TouchableOpacity,
+    Pressable,
+    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card, { InfoRow } from '../../components/Card';
@@ -48,9 +50,9 @@ const DashboardScreen = ({ navigation }) => {
     // Countdown timer effect (must be in component body, not inside any function)
     useEffect(() => {
         if (qurbaniData?.status === 'ready' && readyTimestamp) {
-            setCountdown(getRemainingSeconds(readyTimestamp, 7200));
+            setCountdown(getRemainingSeconds(readyTimestamp, 21600));
             timerRef.current = setInterval(() => {
-                setCountdown(getRemainingSeconds(readyTimestamp, 7200));
+                setCountdown(getRemainingSeconds(readyTimestamp, 21600));
             }, 1000);
             return () => clearInterval(timerRef.current);
         } else {
@@ -81,14 +83,14 @@ const DashboardScreen = ({ navigation }) => {
                     accountType: qurbani.accountType,
                     groupId: qurbani.groupId || null,
                     createdAt: qurbani.createdAt,
+                    readyAt: qurbani.readyAt,
                     completedAt: qurbani.completedAt,
                     notes: qurbani.notes,
                 });
 
-                // If status is ready, set timer
+                // If status is ready, set timer using readyAt timestamp
                 if (displayStatus === 'ready') {
-                    // Use completedAt as the time status was set to ready, fallback to updatedAt/createdAt
-                    const readyTime = qurbani.completedAt || qurbani.updatedAt || qurbani.createdAt;
+                    const readyTime = qurbani.readyAt || qurbani.updatedAt || qurbani.createdAt;
                     setReadyTimestamp(readyTime);
                 } else {
                     setReadyTimestamp(null);
@@ -133,13 +135,26 @@ const DashboardScreen = ({ navigation }) => {
                     accountType: response.qurbani.accountType,
                     groupId: response.qurbani.groupId || null,
                     createdAt: response.qurbani.createdAt,
+                    readyAt: response.qurbani.readyAt,
                     completedAt: response.qurbani.completedAt,
                     notes: response.qurbani.notes,
                 });
+
+                // Update timer if status is ready
+                if (displayStatus === 'ready') {
+                    const readyTime = response.qurbani.readyAt || response.qurbani.updatedAt || response.qurbani.createdAt;
+                    setReadyTimestamp(readyTime);
+                } else {
+                    setReadyTimestamp(null);
+                }
             }
         } catch (error) {
             console.error('Refresh error:', error);
-            Alert.alert('Error', 'Failed to refresh status.');
+            if (Platform.OS === 'web') {
+                window.alert('Error: Failed to refresh status.');
+            } else {
+                Alert.alert('Error', 'Failed to refresh status.');
+            }
         } finally {
             setIsRefreshing(false);
         }
@@ -153,45 +168,83 @@ const DashboardScreen = ({ navigation }) => {
      * Mark Ready
      */
     const handleMarkReady = async () => {
-        Alert.alert(
-            'Request for Qurbani',
-            'Have you completed throwing 7 pebbles at Jamrat al-Aqabah?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Yes, Request for Qurbani',
-                    onPress: async () => {
-                        try {
-                            setIsMarkingReady(true);
+        // Web-compatible confirmation
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(
+                'Have you completed throwing 7 pebbles at Jamrat al-Aqabah?\n\nClick OK to request for Qurbani.'
+            );
 
-                            const result = await qurbaniService.markReady();
+            if (confirmed) {
+                try {
+                    setIsMarkingReady(true);
 
-                            if (result.qurbani) {
-                                await AsyncStorage.setItem(
-                                    'qurbaniData',
-                                    JSON.stringify(result.qurbani)
-                                );
+                    const result = await qurbaniService.markReady();
+
+                    if (result.qurbani) {
+                        await AsyncStorage.setItem(
+                            'qurbaniData',
+                            JSON.stringify(result.qurbani)
+                        );
+                    }
+
+                    window.alert('Success! You have requested for Qurbani!');
+                    fetchQurbaniStatus(false);
+                } catch (error) {
+                    window.alert('Error: Failed to request for Qurbani.');
+                    console.error('Mark ready error:', error);
+                } finally {
+                    setIsMarkingReady(false);
+                }
+            }
+        } else {
+            // Native mobile Alert
+            Alert.alert(
+                'Request for Qurbani',
+                'Have you completed throwing 7 pebbles at Jamrat al-Aqabah?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Yes, Request for Qurbani',
+                        onPress: async () => {
+                            try {
+                                setIsMarkingReady(true);
+
+                                const result = await qurbaniService.markReady();
+
+                                if (result.qurbani) {
+                                    await AsyncStorage.setItem(
+                                        'qurbaniData',
+                                        JSON.stringify(result.qurbani)
+                                    );
+                                }
+
+                                Alert.alert('Success', 'You have requested for Qurbani!', [
+                                    { text: 'OK', onPress: () => fetchQurbaniStatus(false) },
+                                ]);
+                            } catch (error) {
+                                Alert.alert('Error', 'Failed to request for Qurbani.');
+                            } finally {
+                                setIsMarkingReady(false);
                             }
-
-                            Alert.alert('Success', 'You have requested for Qurbani!', [
-                                { text: 'OK', onPress: () => fetchQurbaniStatus(false) },
-                            ]);
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to request for Qurbani.');
-                        } finally {
-                            setIsMarkingReady(false);
-                        }
+                        },
                     },
-                },
-            ]
-        );
+                ]
+            );
+        }
     };
 
     const handleLogout = () => {
-        Alert.alert('Logout', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Logout', onPress: logout, style: 'destructive' },
-        ]);
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm('Are you sure you want to logout?');
+            if (confirmed) {
+                logout();
+            }
+        } else {
+            Alert.alert('Logout', 'Are you sure?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', onPress: logout, style: 'destructive' },
+            ]);
+        }
     };
 
     useEffect(() => {
@@ -271,7 +324,6 @@ const DashboardScreen = ({ navigation }) => {
                                         <StatusBadge status={qurbaniData?.status === 'ready' ? 'Qurbani Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)} />
                                         {qurbaniData?.status === 'ready' && (
                                             <Text style={{ fontWeight: 'bold', color: 'red', marginLeft: 8 }}>
-                                                Qurbani Requested
                                             </Text>
                                         )}
                                     </View>
@@ -308,12 +360,17 @@ const DashboardScreen = ({ navigation }) => {
                 </Card>
 
                 {/* Action */}
-                {canMarkReady && (<>
-                    <TouchableOpacity onPress={handleMarkReady} style={styles.proceedButton}>
+                {canMarkReady && (
+                    <Pressable
+                        onPress={handleMarkReady}
+                        style={({ pressed }) => [
+                            styles.proceedButton,
+                            pressed && { opacity: 0.7 }
+                        ]}
+                    >
                         <Text style={styles.proceedText}>Proceed for Qurbani</Text>
                         <Ionicons name="chevron-forward" size={22} color="#fff" />
-                    </TouchableOpacity>
-                </>
+                    </Pressable>
                 )}
 
 
@@ -348,14 +405,18 @@ const DashboardScreen = ({ navigation }) => {
 /* ================= COMPONENTS ================= */
 
 const ActionCard = ({ icon, title, onPress, disabled }) => (
-    <TouchableOpacity
-        style={[styles.actionCard, disabled && { backgroundColor: '#ccc' }]}
+    <Pressable
+        style={({ pressed }) => [
+            styles.actionCard,
+            disabled && { backgroundColor: '#ccc' },
+            pressed && !disabled && { opacity: 0.7 }
+        ]}
         onPress={onPress ? () => onPress(title) : undefined}
         disabled={disabled}
     >
         <Ionicons name={icon} size={32} color={disabled ? '#888' : '#fff'} />
         <Text style={[styles.actionText, disabled && { color: '#888' }]}>{title}</Text>
-    </TouchableOpacity>
+    </Pressable>
 );
 
 const HistoryItem = ({ icon, color, title, subtitle, time }) => (
@@ -464,6 +525,8 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         alignItems: 'center',
         elevation: 3,
+        cursor: 'pointer',
+        userSelect: 'none',
     },
 
     actionText: {
@@ -508,6 +571,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        cursor: 'pointer',
+        userSelect: 'none',
     },
 
     proceedText: {
