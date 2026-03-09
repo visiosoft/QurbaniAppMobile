@@ -47,20 +47,20 @@ export const MemberCard = ({ member, onPress, onMarkReady, isDisabled }) => (
     <Card style={styles.memberCard} onPress={onPress}>
         <View style={styles.memberHeader}>
             <Text style={styles.memberName}>{member.name}</Text>
-            <StatusBadge status={member.status} size="small" />
+            <StatusBadge status={member.qurbaniStatus || member.status} size="small" />
         </View>
 
         <InfoRow label="Passport No." value={member.passportNumber} />
         <InfoRow label="Phone" value={member.phoneNumber} />
         <InfoRow label="Qurbani Type" value={member.qurbaniType} />
 
-        {member.status === 'pending' && onMarkReady && (
+        {(member.qurbaniStatus === 'pending' || member.status === 'pending') && onMarkReady && (
             <TouchableOpacity
                 style={[
                     styles.markReadyButton,
                     isDisabled && styles.markReadyButtonDisabled,
                 ]}
-                onPress={() => onMarkReady(member._id)}
+                onPress={() => onMarkReady(member.id)}
                 disabled={isDisabled}
             >
                 <Text
@@ -69,7 +69,7 @@ export const MemberCard = ({ member, onPress, onMarkReady, isDisabled }) => (
                         isDisabled && styles.markReadyButtonTextDisabled,
                     ]}
                 >
-                    Mark as Ready
+                    Proceed for Qurbani
                 </Text>
             </TouchableOpacity>
         )}

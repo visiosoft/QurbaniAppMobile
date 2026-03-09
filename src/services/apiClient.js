@@ -8,6 +8,7 @@ const apiClient = axios.create({
     timeout: REQUEST_TIMEOUT,
     headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true', // Skip ngrok warning page
     },
     // Mobile app uses token-based auth, not cookies
 });
@@ -17,8 +18,12 @@ apiClient.interceptors.request.use(
     async (config) => {
         try {
             const token = await AsyncStorage.getItem('authToken');
+            console.log('🔑 Auth token exists:', !!token);
+            console.log('🌐 Request:', config.method.toUpperCase(), config.url);
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
+            } else {
+                console.warn('⚠️ No auth token found in AsyncStorage');
             }
         } catch (error) {
             console.error('Error getting auth token:', error);
@@ -32,11 +37,17 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Handle errors globally
 apiClient.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        console.log('✅ Response received:', response.status, response.config.url);
+        console.log('📦 Response data keys:', Object.keys(response.data || {}));
+        return response;
+    },
     async (error) => {
         if (error.response) {
+            console.error('❌ Response error:', error.response.status, error.response.data);
             // Handle 401 Unauthorized - Token expired or invalid
             if (error.response.status === 401) {
+                console.warn('🔒 Unauthorized - clearing storage');
                 await AsyncStorage.removeItem('authToken');
                 await AsyncStorage.removeItem('userData');
                 // TODO: Navigate to login screen
@@ -48,9 +59,11 @@ apiClient.interceptors.response.use(
             return Promise.reject(new Error(errorMessage));
         } else if (error.request) {
             // Request made but no response received
+            console.error('❌ No response received:', error.request);
             return Promise.reject(new Error('Network error. Please check your connection.'));
         } else {
             // Something else happened
+            console.error('❌ Request setup error:', error.message);
             return Promise.reject(error);
         }
     }

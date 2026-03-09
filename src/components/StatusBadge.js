@@ -27,9 +27,9 @@ const StatusBadge = ({ status, size = 'medium' }) => {
             case STATUS_TYPES.PENDING:
                 return 'Pending';
             case STATUS_TYPES.READY:
-                return 'Ready';
+                return 'Requested for Qurbani';
             case STATUS_TYPES.DONE:
-                return 'Done';
+                return 'Qurbani Completed';
             default:
                 return status;
         }

@@ -13,8 +13,10 @@ const groupService = {
     getMembers: async () => {
         try {
             const response = await apiClient.get(API_ENDPOINTS.GET_MEMBERS);
+            console.log('🔍 groupService.getMembers response:', response.data);
             return response.data;
         } catch (error) {
+            console.error('❌ groupService.getMembers error:', error);
             throw error;
         }
     },

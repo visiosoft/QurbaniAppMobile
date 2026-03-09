@@ -55,16 +55,16 @@ export const BORDER_RADIUS = {
 
 // Qurbani Types
 export const QURBANI_TYPES = {
-    SHEEP: 'sheep',
-    COW: 'cow',
-    CAMEL: 'camel',
+    SHEEP: 'Sheep',
+    COW: 'Cow',
+    CAMEL: 'Camel',
 };
 
 // Maximum members allowed per animal type
 export const MAX_MEMBERS_PER_ANIMAL = {
-    [QURBANI_TYPES.SHEEP]: 1,
-    [QURBANI_TYPES.COW]: 5,
-    [QURBANI_TYPES.CAMEL]: 7,
+    'Sheep': 3,
+    'Cow': 7,
+    'Camel': 7,
 };
 
 // Account Types
@@ -83,13 +83,13 @@ export const STATUS_TYPES = {
 // Status display names
 export const STATUS_LABELS = {
     [STATUS_TYPES.PENDING]: 'Pending',
-    [STATUS_TYPES.READY]: 'Ready',
-    [STATUS_TYPES.DONE]: 'Done',
+    [STATUS_TYPES.READY]: 'Requested for Qurbani',
+    [STATUS_TYPES.DONE]: 'Qurbani Completed',
 };
 
 // Qurbani type display names
 export const QURBANI_TYPE_LABELS = {
-    [QURBANI_TYPES.SHEEP]: 'Sheep',
-    [QURBANI_TYPES.COW]: 'Cow',
-    [QURBANI_TYPES.CAMEL]: 'Camel',
+    'Sheep': 'Sheep',
+    'Cow': 'Cow',
+    'Camel': 'Camel',
 };

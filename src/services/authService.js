@@ -91,6 +91,30 @@ const authService = {
         const token = await authService.getToken();
         return !!token;
     },
+
+    /**
+     * Refresh user profile data from server
+     * Updates the stored userData with fresh data from backend
+     * @returns {Promise<Object>} Fresh user data
+     */
+    refreshUserProfile: async () => {
+        try {
+            console.log('🔄 authService.refreshUserProfile: Calling API...');
+            const response = await apiClient.get(API_ENDPOINTS.GET_USER_PROFILE);
+            console.log('📦 authService.refreshUserProfile: Response received');
+            const { user } = response.data;
+            console.log('👤 authService.refreshUserProfile: User data:', JSON.stringify(user, null, 2));
+
+            // Update stored user data
+            await AsyncStorage.setItem('userData', JSON.stringify(user));
+            console.log('✅ authService.refreshUserProfile: User data updated in storage');
+
+            return user;
+        } catch (error) {
+            console.error('❌ Error refreshing user profile:', error);
+            throw error;
+        }
+    },
 };
 
 export default authService;

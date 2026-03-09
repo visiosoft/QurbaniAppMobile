@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 // Helper to get remaining seconds from a timestamp
 function getRemainingSeconds(startTime, durationSeconds) {
     if (!startTime) return 0;
@@ -24,6 +25,7 @@ import Card, { InfoRow } from '../../components/Card';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import qurbaniService from '../../services/qurbaniService';
+import groupService from '../../services/groupService';
 import Button from '../../components/Button';
 import StatusBadge from '../../components/StatusBadge';
 import Loading from '../../components/Loading';
@@ -37,9 +39,10 @@ import {
 } from '../../config/constants';
 
 const DashboardScreen = ({ navigation }) => {
-    const { user, logout } = useAuth();
+    const { user, logout, refreshUser } = useAuth();
 
     const [qurbaniData, setQurbaniData] = useState(null);
+    const [groupMembers, setGroupMembers] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isMarkingReady, setIsMarkingReady] = useState(false);
@@ -62,6 +65,7 @@ const DashboardScreen = ({ navigation }) => {
     }, [qurbaniData?.status, readyTimestamp]);
     const fetchQurbaniStatus = async (showLoader = true) => {
         try {
+            console.log('📊 fetchQurbaniStatus called, showLoader:', showLoader);
             if (showLoader) setIsLoading(true);
 
             const qurbaniDataStr = await AsyncStorage.getItem('qurbaniData');
@@ -72,7 +76,7 @@ const DashboardScreen = ({ navigation }) => {
                 const userData = userDataStr ? JSON.parse(userDataStr) : user;
 
                 const displayStatus =
-                    userData?.accountType === 'Group'
+                    userData?.accountType === 'group'
                         ? userData.status
                         : qurbani.status;
 
@@ -106,11 +110,32 @@ const DashboardScreen = ({ navigation }) => {
     };
 
     /**
-     * Refresh API data
+     * Refresh API data from server
      */
     const refreshQurbaniData = async () => {
         try {
             setIsRefreshing(true);
+
+            // First refresh user profile to get latest data
+            try {
+                await refreshUser();
+                console.log('✅ User profile refreshed');
+            } catch (refreshError) {
+                console.log('⚠️ Could not refresh user profile:', refreshError);
+                // Check if it's a network error
+                if (refreshError.message?.includes('Network') || refreshError.message?.includes('network')) {
+                    if (Platform.OS === 'web') {
+                        window.alert('No Internet Connection\n\nPlease check your internet connection and try again.');
+                    } else {
+                        Alert.alert(
+                            'No Internet Connection',
+                            'Please check your internet connection and try again.',
+                            [{ text: 'OK' }]
+                        );
+                    }
+                    return; // Stop execution if no internet
+                }
+            }
 
             const response = await qurbaniService.getStatus();
 
@@ -124,7 +149,7 @@ const DashboardScreen = ({ navigation }) => {
                 const userData = userDataStr ? JSON.parse(userDataStr) : user;
                 console.log('Refreshed Qurbani Data:', response.qurbani);
                 const displayStatus =
-                    userData?.accountType === 'Group'
+                    userData?.accountType === 'group'
                         ? userData.status
                         : response.qurbani.status;
 
@@ -148,12 +173,28 @@ const DashboardScreen = ({ navigation }) => {
                     setReadyTimestamp(null);
                 }
             }
+
+            // Also refresh group members if in a group
+            await fetchGroupMembers();
         } catch (error) {
             console.error('Refresh error:', error);
-            if (Platform.OS === 'web') {
-                window.alert('Error: Failed to refresh status.');
+            // Check for network errors
+            if (error.message?.includes('Network') || error.message?.includes('network')) {
+                if (Platform.OS === 'web') {
+                    window.alert('No Internet Connection\n\nPlease check your internet connection and try again.');
+                } else {
+                    Alert.alert(
+                        'No Internet Connection',
+                        'Please check your internet connection and try again.',
+                        [{ text: 'OK' }]
+                    );
+                }
             } else {
-                Alert.alert('Error', 'Failed to refresh status.');
+                if (Platform.OS === 'web') {
+                    window.alert('Error: Failed to refresh status.');
+                } else {
+                    Alert.alert('Error', 'Failed to refresh status.');
+                }
             }
         } finally {
             setIsRefreshing(false);
@@ -162,7 +203,29 @@ const DashboardScreen = ({ navigation }) => {
 
     const onRefresh = useCallback(() => {
         refreshQurbaniData();
+        fetchGroupMembers(); // Also refresh group members
     }, []);
+
+    /**
+     * Fetch group members if user is in a group
+     */
+    const fetchGroupMembers = async () => {
+        try {
+            // Only fetch if user is in a group
+            if (user?.accountType === 'group' && user?.groupId) {
+                console.log('📋 Fetching group members for history...');
+                const data = await groupService.getMembers();
+                console.log('✅ Fetched group members for history:', data.members?.length || 0);
+                setGroupMembers(data.members || []);
+            } else {
+                console.log('ℹ️ User is not in a group, skipping member fetch');
+                setGroupMembers([]);
+            }
+        } catch (error) {
+            console.error('❌ Error fetching group members for history:', error);
+            setGroupMembers([]);
+        }
+    };
 
     /**
      * Mark Ready
@@ -248,8 +311,22 @@ const DashboardScreen = ({ navigation }) => {
     };
 
     useEffect(() => {
+        console.log('🎬 Dashboard mounted - fetching initial data');
         fetchQurbaniStatus();
-    }, []);
+        fetchGroupMembers();
+    }, []); // Run once on mount - avoid infinite loops
+
+    // Refresh data when screen comes into focus (e.g., after navigating back)
+    useFocusEffect(
+        useCallback(() => {
+            console.log('👁️ Dashboard focused - refreshing data');
+            // Only refresh if not already loading
+            if (!isLoading && !isRefreshing) {
+                fetchQurbaniStatus(false);
+                fetchGroupMembers();
+            }
+        }, [isLoading, isRefreshing])
+    );
 
     if (isLoading) {
         return <Loading message="Loading your Qurbani status..." />;
@@ -259,11 +336,34 @@ const DashboardScreen = ({ navigation }) => {
     const canMarkReady = qurbaniData?.status === STATUS_TYPES.PENDING;
 
     // Handler for ActionCard navigation
-    const handleActionCardPress = (title) => {
+    const handleActionCardPress = async (title) => {
         if (title === 'My Profile') {
             navigation.navigate('Profile');
         } else if (title === 'Family Group') {
-            navigation.navigate('Members');
+            // Refresh user data to ensure we have the latest accountType
+            try {
+                console.log('🔄 Refreshing user data before navigating to Family Group...');
+                await refreshUser();
+                console.log('✅ User data refreshed successfully');
+                navigation.navigate('Members');
+            } catch (error) {
+                console.log('❌ Could not refresh user before navigation:', error);
+                // Check for network errors
+                if (error.message?.includes('Network') || error.message?.includes('network')) {
+                    if (Platform.OS === 'web') {
+                        window.alert('No Internet Connection\n\nPlease check your internet connection and try again.');
+                    } else {
+                        Alert.alert(
+                            'No Internet Connection',
+                            'Please check your internet connection and try again.',
+                            [{ text: 'OK' }]
+                        );
+                    }
+                } else {
+                    // Navigate anyway with cached data
+                    navigation.navigate('Members');
+                }
+            }
         } else if (title === 'Help & Info') {
             navigation.navigate('HelpInfo');
         }
@@ -388,13 +488,52 @@ const DashboardScreen = ({ navigation }) => {
                         time="Just now"
                     />
 
-                    <HistoryItem
-                        icon="alert-circle"
-                        color="#f39c12"
-                        title={`Qurbani: ${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
-                        subtitle={`${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
-                        time=""
-                    />
+                    {/* Show group members' qurbani status if user is in a group */}
+                    {user?.accountType === 'group' && groupMembers.length > 0 ? (
+                        <>
+                            <View style={styles.historySeparator}>
+                                <Text style={styles.historySeparatorText}>Family Members Qurbani Status</Text>
+                            </View>
+                            {groupMembers.map((member) => (
+                                <HistoryItem
+                                    key={member.id}
+                                    icon={
+                                        member.qurbaniStatus === 'ready' || member.qurbaniStatus === 'done'
+                                            ? 'checkmark-circle'
+                                            : member.qurbaniStatus === 'pending'
+                                                ? 'time-outline'
+                                                : 'alert-circle'
+                                    }
+                                    color={
+                                        member.qurbaniStatus === 'ready' || member.qurbaniStatus === 'done'
+                                            ? '#2ecc71'
+                                            : member.qurbaniStatus === 'pending'
+                                                ? '#f39c12'
+                                                : '#e74c3c'
+                                    }
+                                    title={`${member.name}${member.isRepresentative ? ' (You)' : ''}`}
+                                    subtitle={`Qurbani: ${member.qurbaniStatus === 'ready'
+                                            ? 'Requested'
+                                            : member.qurbaniStatus === 'done'
+                                                ? 'Completed'
+                                                : member.qurbaniStatus === 'pending'
+                                                    ? 'Pending'
+                                                    : member.qurbaniStatus
+                                        }`}
+                                    time={member.qurbaniType || ''}
+                                />
+                            ))}
+                        </>
+                    ) : (
+                        /* Show individual user's qurbani status */
+                        <HistoryItem
+                            icon="alert-circle"
+                            color="#f39c12"
+                            title={`Qurbani: ${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
+                            subtitle={`${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
+                            time=""
+                        />
+                    )}
                 </View>
 
             </ScrollView>
@@ -616,6 +755,21 @@ const styles = StyleSheet.create({
     historyTime: {
         color: '#888',
         fontSize: 12,
+    },
+
+    historySeparator: {
+        marginTop: 12,
+        marginBottom: 8,
+        paddingTop: 12,
+        borderTopWidth: 2,
+        borderTopColor: '#e0e0e0',
+    },
+
+    historySeparatorText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#555',
+        textAlign: 'center',
     },
 });
 

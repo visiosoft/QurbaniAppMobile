@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     // Authentication
     LOGIN: '/api/auth/authenticate',
     LOGOUT: '/api/auth/logout',
+    GET_USER_PROFILE: '/api/auth/user/profile',
 
     // User
     GET_PROFILE: '/api/user/profile',

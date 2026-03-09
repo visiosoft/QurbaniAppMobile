@@ -3,10 +3,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../config/constants';
 
-// Import screens (will be created later)
+// Import screens
 import DashboardScreen from '../screens/main/DashboardScreen';
 import GroupMembersScreen from '../screens/main/GroupMembersScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
+import HelpInfoScreen from '../screens/main/HelpInfoScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { ACCOUNT_TYPES } from '../config/constants';
 
@@ -63,16 +64,26 @@ const MainNavigator = () => {
                 }}
             />
 
-            {/* Only show Members tab for group accounts */}
-            {isGroupAccount && (
-                <Tab.Screen
-                    name="Members"
-                    component={GroupMembersScreen}
-                    options={{
-                        title: 'Family Group',
-                    }}
-                />
-            )}
+            {/* Members screen - always available for navigation but only visible in tabs for group accounts */}
+            <Tab.Screen
+                name="Members"
+                component={GroupMembersScreen}
+                options={{
+                    title: 'Family Group',
+                    tabBarButton: isGroupAccount ? undefined : () => null,
+                    tabBarStyle: isGroupAccount ? undefined : { display: 'none' },
+                }}
+            />
+
+            {/* Help & Info screen - hidden from tabs but available for navigation */}
+            <Tab.Screen
+                name="HelpInfo"
+                component={HelpInfoScreen}
+                options={{
+                    title: 'Help & Info',
+                    tabBarButton: () => null,
+                }}
+            />
 
             <Tab.Screen
                 name="Profile"

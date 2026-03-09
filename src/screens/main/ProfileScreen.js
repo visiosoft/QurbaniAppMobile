@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     View,
     Text,
@@ -28,7 +29,7 @@ import {
  * View and edit user profile information
  */
 const ProfileScreen = () => {
-    const { user, updateUser, logout } = useAuth();
+    const { user, updateUser, logout, refreshUser } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -46,6 +47,31 @@ const ProfileScreen = () => {
     useEffect(() => {
         loadNotificationPreferences();
     }, []);
+
+    // Refresh user data when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            console.log('👁️ ProfileScreen focused - refreshing user data');
+            const refreshUserData = async () => {
+                try {
+                    const freshUser = await refreshUser();
+                    setPhoneNumber(freshUser?.phoneNumber || '');
+                    console.log('✅ User data refreshed on ProfileScreen');
+                } catch (error) {
+                    console.log('⚠️ Could not refresh user on ProfileScreen:', error);
+                    // Check for network errors
+                    if (error.message?.includes('Network') || error.message?.includes('network')) {
+                        if (Platform.OS === 'web') {
+                            window.alert('No Internet Connection\\n\\nPlease check your internet connection.');
+                        } else {
+                            Alert.alert('No Internet Connection', 'Please check your internet connection.');
+                        }
+                    }
+                }
+            };
+            refreshUserData();
+        }, [])
+    );
 
     /**
      * Load notification preferences from storage

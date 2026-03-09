@@ -80,6 +80,23 @@ export const AuthProvider = ({ children }) => {
         setUser(updatedUser);
     };
 
+    /**
+     * Refresh user data from server
+     * Fetches fresh user data and updates context
+     */
+    const refreshUser = async () => {
+        try {
+            console.log('🔄 AuthContext.refreshUser: Starting refresh...');
+            const freshUserData = await authService.refreshUserProfile();
+            console.log('✅ AuthContext.refreshUser: Fresh data received:', freshUserData?.name, 'accountType:', freshUserData?.accountType);
+            setUser(freshUserData);
+            return freshUserData;
+        } catch (error) {
+            console.error('❌ AuthContext.refreshUser: Error refreshing user:', error);
+            throw error;
+        }
+    };
+
     const value = {
         user,
         isAuthenticated,
@@ -87,6 +104,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         updateUser,
+        refreshUser,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
