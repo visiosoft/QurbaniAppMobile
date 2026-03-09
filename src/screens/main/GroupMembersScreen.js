@@ -264,30 +264,11 @@ const GroupMembersScreen = () => {
             {/* Summary Header */}
             <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Qurbani Type:</Text>
-                    <Text style={styles.summaryValue}>
-                        {QURBANI_TYPE_LABELS[user?.qurbaniType]}
+                    <Text style={[styles.summaryLabel, { textAlign: 'center', width: '100%', fontSize: 14 }]}>
+                        لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لَا شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لَا شَرِيكَ لَكَ
                     </Text>
                 </View>
-                <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Members Ready:</Text>
-                    <Text
-                        style={[
-                            styles.summaryValue,
-                            { color: currentReady >= maxAllowed ? COLORS.done : COLORS.ready },
-                        ]}
-                    >
-                        {currentReady} / {maxAllowed}
-                    </Text>
-                </View>
-
-                {!canMarkMore && (
-                    <View style={styles.warningBanner}>
-                        <Text style={styles.warningText}>
-                            ⚠️ Maximum capacity reached for {QURBANI_TYPE_LABELS[user?.qurbaniType]}
-                        </Text>
-                    </View>
-                )}
+               
             </View>
 
             {/* Members List */}

@@ -507,6 +507,7 @@ const DashboardScreen = ({ navigation }) => {
                                                 : member.qurbaniStatus
                                         }`}
                                     time={member.qurbaniType || ''}
+                                    highlight={member.qurbaniStatus === 'ready'}
                                 />
                             ))}
                         </>
@@ -518,6 +519,7 @@ const DashboardScreen = ({ navigation }) => {
                             title={`Qurbani: ${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
                             subtitle={`${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
                             time=""
+                            highlight={qurbaniData?.status === 'ready'}
                         />
                     )}
                 </View>
@@ -544,14 +546,33 @@ const ActionCard = ({ icon, title, onPress, disabled }) => (
     </Pressable>
 );
 
-const HistoryItem = ({ icon, color, title, subtitle, time }) => (
-    <View style={styles.historyItem}>
+const HistoryItem = ({ icon, color, title, subtitle, time, highlight }) => (
+    <View style={[
+        styles.historyItem,
+        highlight && styles.historyItemHighlight,
+    ]}>
         <Ionicons name={icon} size={26} color={color} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={styles.historyMain}>{title}</Text>
-            <Text style={styles.historySub}>{subtitle}</Text>
+            <Text style={[
+                styles.historyMain,
+                highlight && styles.historyMainHighlight,
+            ]}>
+                {title}
+            </Text>
+            <Text style={[
+                styles.historySub,
+                highlight && styles.historySubHighlight,
+            ]}>
+                {subtitle}
+            </Text>
         </View>
-        {time ? <Text style={styles.historyTime}>{time}</Text> : null}
+        {highlight && (
+            <View style={styles.pendingBadge}>
+                <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
+                <Text style={styles.pendingBadgeText}>PENDING</Text>
+            </View>
+        )}
+        {time && !highlight ? <Text style={styles.historyTime}>{time}</Text> : null}
     </View>
 );
 
@@ -702,8 +723,32 @@ const styles = StyleSheet.create({
         borderColor: '#eee',
     },
 
+    historyItemHighlight: {
+        backgroundColor: '#FFF4E6',
+        borderLeftWidth: 4,
+        borderLeftColor: '#FF6B6B',
+        paddingLeft: 12,
+        marginHorizontal: -16,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        shadowColor: '#FF6B6B',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+
     historyMain: {
         fontWeight: '600',
+    },
+
+    historyMainHighlight: {
+        fontWeight: 'bold',
+        color: '#D63031',
+        fontSize: 15,
     },
 
     historySub: {
@@ -711,9 +756,33 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
 
+    historySubHighlight: {
+        color: '#FF6B6B',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+
     historyTime: {
         color: '#888',
         fontSize: 12,
+    },
+
+    pendingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFE5E5',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#FF6B6B',
+    },
+
+    pendingBadgeText: {
+        color: '#D63031',
+        fontSize: 11,
+        fontWeight: 'bold',
+        marginLeft: 4,
     },
 
     historySeparator: {

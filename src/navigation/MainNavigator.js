@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../config/constants';
 
@@ -8,10 +9,41 @@ import DashboardScreen from '../screens/main/DashboardScreen';
 import GroupMembersScreen from '../screens/main/GroupMembersScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import HelpInfoScreen from '../screens/main/HelpInfoScreen';
+import PrayerTimesScreen from '../screens/main/PrayerTimesScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { ACCOUNT_TYPES } from '../config/constants';
 
 const Tab = createBottomTabNavigator();
+
+/**
+ * Custom Header Component for Dashboard
+ * Modern single-line design
+ */
+const DashboardHeader = () => {
+    return (
+        <View style={headerStyles.container}>
+            <Ionicons name="moon" size={24} color="#FFD700" style={headerStyles.icon} />
+            <Text style={headerStyles.title}>Qurbani Mate</Text>
+        </View>
+    );
+};
+
+const headerStyles = StyleSheet.create({
+    container: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    icon: {
+        marginRight: 8,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
+    },
+});
 
 /**
  * Main Navigator
@@ -31,6 +63,8 @@ const MainNavigator = () => {
                         iconName = focused ? 'home' : 'home-outline';
                     } else if (route.name === 'Members') {
                         iconName = focused ? 'people' : 'people-outline';
+                    } else if (route.name === 'PrayerTimes') {
+                        iconName = focused ? 'moon' : 'moon-outline';
                     } else if (route.name === 'Profile') {
                         iconName = focused ? 'person' : 'person-outline';
                     }
@@ -60,7 +94,13 @@ const MainNavigator = () => {
                 name="Dashboard"
                 component={DashboardScreen}
                 options={{
-                    title: 'Qurbani Mate',
+                    headerTitle: () => <DashboardHeader />,
+                    headerStyle: {
+                        backgroundColor: '#1F7A4C',
+                        elevation: 0,
+                        shadowOpacity: 0,
+                        borderBottomWidth: 0,
+                    },
                 }}
             />
 
@@ -72,6 +112,15 @@ const MainNavigator = () => {
                     title: 'Family Group',
                     tabBarButton: isGroupAccount ? undefined : () => null,
                     tabBarStyle: isGroupAccount ? undefined : { display: 'none' },
+                }}
+            />
+
+            {/* Prayer Times screen - always visible */}
+            <Tab.Screen
+                name="PrayerTimes"
+                component={PrayerTimesScreen}
+                options={{
+                    title: 'Prayer Times',
                 }}
             />
 
