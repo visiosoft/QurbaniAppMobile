@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card, { InfoRow } from '../../components/Card';
+import QurbaniStatusCard from '../../components/QurbaniStatusCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import qurbaniService from '../../services/qurbaniService';
@@ -407,57 +408,42 @@ const DashboardScreen = ({ navigation }) => {
                     />
                     <ActionCard icon="information-circle" title="Help & Info" onPress={handleActionCardPress} />
                 </View>
-                <Card style={styles.statusCard}>
-                    <Text style={styles.statusTitle}>Qurbani Status</Text>
 
-
-                    <InfoRow
-                        label={
-                            <>
-                                {qurbaniData?.status === 'done' ? (
-                                    <View style={{ alignItems: 'center', width: '100%' }}>
-                                        <Text style={{ fontWeight: 'bold', color: 'green', fontSize: 16, textAlign: 'center' }}>🎉 Congratulations!</Text>
-                                        <Text style={{ fontWeight: 'bold', color: 'green', fontSize: 15, textAlign: 'center', marginTop: 2 }}>Qurbani Completed</Text>
-                                    </View>
-                                ) : (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                                        <StatusBadge status={qurbaniData?.status === 'ready' ? 'Qurbani Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)} />
-                                        {qurbaniData?.status === 'ready' && (
-                                            <Text style={{ fontWeight: 'bold', color: 'red', marginLeft: 8 }}>
-                                            </Text>
-                                        )}
-                                    </View>
-                                )}
-                            </>
-                        }
-                    />
-                    <InfoRow
-                        label="Wait Time"
-                        value={
-                            <>
-                                {qurbaniData?.status === 'ready' && countdown > 0 && (
-                                    <Text style={{ marginLeft: 10, color: '#1e0104', fontWeight: 'bold' }}>
-                                        {`${Math.floor(countdown / 3600)}:${String(Math.floor((countdown % 3600) / 60)).padStart(2, '0')}:${String(countdown % 60).padStart(2, '0')}`} left
-                                    </Text>
-                                )}
-                            </>
-                        }
-                    />
-                    <View style={styles.divider} />
-
-                    <InfoRow
-                        label="Qurbani Type"
-                        value={
-                            QURBANI_TYPE_LABELS[qurbaniData?.qurbaniType] ||
-                            qurbaniData?.qurbaniType
-                        }
-                    />
-
-                    <InfoRow
-                        label="Account Type"
-                        value={isIndividual ? 'Individual' : 'Group Account'}
-                    />
-                </Card>
+                {/* ================= QURBANI STATUS CARD ================= */}
+                <QurbaniStatusCard
+                    status={
+                        qurbaniData?.status === 'done'
+                            ? 'Qurbani Completed'
+                            : qurbaniData?.status === 'ready'
+                                ? 'Requested for Qurbani'
+                                : 'Pending'
+                    }
+                    waitTime={
+                        qurbaniData?.status === 'ready' && countdown > 0
+                            ? `${Math.floor(countdown / 3600)}h ${Math.floor((countdown % 3600) / 60)}m`
+                            : '0h 0m'
+                    }
+                    qurbaniType={
+                        QURBANI_TYPE_LABELS[qurbaniData?.qurbaniType] ||
+                        qurbaniData?.qurbaniType ||
+                        'Not Set'
+                    }
+                    accountType={isIndividual ? 'Individual' : 'Group Account'}
+                    statusColor={
+                        qurbaniData?.status === 'done'
+                            ? '#4CAF50'
+                            : qurbaniData?.status === 'ready'
+                                ? '#E67E22'
+                                : '#FF9800'
+                    }
+                    description={
+                        qurbaniData?.status === 'done'
+                            ? '🎉 Congratulations! Your Qurbani has been completed.'
+                            : qurbaniData?.status === 'ready'
+                                ? 'Your Qurbani request is received.'
+                                : 'Complete Jamarat to request for Qurbani.'
+                    }
+                />
 
                 {/* Action */}
                 {canMarkReady && (
@@ -513,12 +499,12 @@ const DashboardScreen = ({ navigation }) => {
                                     }
                                     title={`${member.name}${member.isRepresentative ? ' (You)' : ''}`}
                                     subtitle={`Qurbani: ${member.qurbaniStatus === 'ready'
-                                            ? 'Requested'
-                                            : member.qurbaniStatus === 'done'
-                                                ? 'Completed'
-                                                : member.qurbaniStatus === 'pending'
-                                                    ? 'Pending'
-                                                    : member.qurbaniStatus
+                                        ? 'Requested'
+                                        : member.qurbaniStatus === 'done'
+                                            ? 'Completed'
+                                            : member.qurbaniStatus === 'pending'
+                                                ? 'Pending'
+                                                : member.qurbaniStatus
                                         }`}
                                     time={member.qurbaniType || ''}
                                 />
@@ -672,33 +658,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         marginTop: 8,
         fontWeight: '600',
-    },
-
-    /* STATUS */
-    statusCard: {
-        backgroundColor: '#f7d774',
-        margin: 16,
-        borderRadius: 12,
-        padding: 16,
-    },
-
-    statusTitle: {
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 10,
-        fontSize: 16,
-    },
-
-    statusRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    statusText: {
-        marginLeft: 10,
-        fontSize: 16,
-        fontWeight: '500',
     },
 
     /* BUTTON */

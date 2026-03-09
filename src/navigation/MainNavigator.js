@@ -60,7 +60,7 @@ const MainNavigator = () => {
                 name="Dashboard"
                 component={DashboardScreen}
                 options={{
-                    title: 'Qurbani Status',
+                    title: 'Qurbani Mate',
                 }}
             />
 
