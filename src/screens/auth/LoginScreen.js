@@ -20,8 +20,8 @@ import { COLORS, SPACING, FONT_SIZES } from '../../config/constants';
  */
 const LoginScreen = () => {
     const { login } = useAuth();
-    const [phoneNumber, setPhoneNumber] = useState('123456');
-    const [passportNumber, setPassportNumber] = useState('123456');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [passportNumber, setPassportNumber] = useState('');
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
 
@@ -85,7 +85,7 @@ const LoginScreen = () => {
                 <View style={styles.content}>
                     {/* Logo or App Title */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Qurbani Management</Text>
+                        <Text style={styles.title}>Qurbani Mate</Text>
                         <Text style={styles.subtitle}>
                             Manage your Hajj Qurbani with ease
                         </Text>

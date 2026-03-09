@@ -9,7 +9,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true, // Enable session cookies
+    // Mobile app uses token-based auth, not cookies
 });
 
 // Request interceptor - Add auth token to requests

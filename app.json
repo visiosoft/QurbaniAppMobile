@@ -24,12 +24,18 @@
                 "backgroundColor": "#ffffff"
             },
             "package": "com.qurbani.mobile",
+            "versionCode": 1,
             "permissions": [
-                "NOTIFICATIONS"
+                "INTERNET"
             ]
         },
         "web": {
             "favicon": "./assets/favicon.png"
+        },
+        "extra": {
+            "eas": {
+                "projectId": "e3cfa97d-6d66-4a74-9700-cd04c348e727"
+            }
         }
     }
 }

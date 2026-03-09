@@ -1,6 +1,9 @@
 // API Configuration
-// TODO: Replace with your actual backend API URL
-export const API_BASE_URL = 'http://192.168.1.8:5000';
+// Using ngrok tunnel for remote access (works from anywhere)
+export const API_BASE_URL = 'https://ingrained-unserved-irmgard.ngrok-free.dev';
+//
+// Alternative local network access (same WiFi only):
+// export const API_BASE_URL = 'http://192.168.1.8:5000';
 
 // API Endpoints
 export const API_ENDPOINTS = {
