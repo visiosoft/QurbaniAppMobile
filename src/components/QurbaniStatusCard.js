@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -9,17 +9,23 @@ import { Ionicons } from '@expo/vector-icons';
  * @param {string} status - Status text (e.g., "Requested", "Pending", "Completed")
  * @param {string} waitTime - Estimated wait time (e.g., "5h 13m")
  * @param {string} qurbaniType - Type of qurbani (e.g., "Sheep", "Cow", "Camel")
- * @param {string} accountType - Account type (e.g., "Individual", "Group Account")
+ * @param {string} userName - User's name to display
  * @param {string} statusColor - Color for the status (default: #E67E22)
  * @param {string} description - Description text below status
+ * @param {boolean} isTypeSelected - Whether qurbani type is selected/confirmed
+ * @param {function} onTypeToggle - Callback when checkbox is toggled
+ * @param {boolean} allowTypeSelection - Whether to show type selection checkbox
  */
 const QurbaniStatusCard = ({
     status = 'Pending',
     waitTime = '0h 0m',
     qurbaniType = 'Sheep',
-    accountType = 'Individual',
+    userName = 'User',
     statusColor = '#E67E22',
     description = 'Your Qurbani request is received.',
+    isTypeSelected = false,
+    onTypeToggle = null,
+    allowTypeSelection = false,
 }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -80,19 +86,32 @@ const QurbaniStatusCard = ({
 
             {/* Bottom Info Section */}
             <View style={styles.bottomRow}>
-                {/* Type Column */}
+                {/* Type Column with Checkbox */}
                 <View style={styles.column}>
-                    <Text style={styles.label}>Type</Text>
-                    <Text style={styles.value}>{qurbaniType}</Text>
+                    <Text style={styles.label}>{allowTypeSelection ? 'Action' : 'Type'}</Text>
+                    {allowTypeSelection ? (
+                        <TouchableOpacity
+                            style={styles.checkboxRow}
+                            onPress={onTypeToggle}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.checkbox, isTypeSelected && styles.checkboxSelected]}>
+                                {isTypeSelected && <Ionicons name="checkmark" size={18} color="#fff" />}
+                            </View>
+                            <Text style={styles.checkboxLabel}>Mark for Qurbani</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <Text style={styles.value}>{qurbaniType}</Text>
+                    )}
                 </View>
 
                 {/* Vertical Divider */}
                 <View style={styles.verticalDivider} />
 
-                {/* Account Column */}
+                {/* Name Column */}
                 <View style={styles.column}>
-                    <Text style={styles.label}>Account</Text>
-                    <Text style={styles.value}>{accountType}</Text>
+                    <Text style={styles.label}>Name</Text>
+                    <Text style={styles.value}>{userName}</Text>
                 </View>
             </View>
         </Animated.View>
@@ -181,6 +200,33 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         color: '#000',
+    },
+    checkboxRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 4,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#777',
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    checkboxSelected: {
+        backgroundColor: '#4CAF50',
+        borderColor: '#4CAF50',
+    },
+    checkboxLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#000',
+        flexShrink: 1,
     },
 });
 

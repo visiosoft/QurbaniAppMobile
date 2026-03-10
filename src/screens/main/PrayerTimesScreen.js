@@ -66,7 +66,7 @@ const PrayerTimesScreen = () => {
 
             if (status !== 'granted') {
                 setLocationError('Location permission denied');
-                
+
                 // Try to load cached location
                 const cachedLocation = await AsyncStorage.getItem('userLocation');
                 if (cachedLocation) {
@@ -93,17 +93,17 @@ const PrayerTimesScreen = () => {
             };
 
             setLocation(coords);
-            
+
             // Cache location
             await AsyncStorage.setItem('userLocation', JSON.stringify(coords));
-            
+
             // Calculate prayer times
             calculateAndSetPrayerTimes(coords.latitude, coords.longitude);
 
         } catch (error) {
             console.error('Error getting location:', error);
             setLocationError(error.message);
-            
+
             // Try cached location
             try {
                 const cachedLocation = await AsyncStorage.getItem('userLocation');
@@ -149,7 +149,7 @@ const PrayerTimesScreen = () => {
             // Get current and next prayer
             const current = getCurrentPrayer(times);
             const next = getNextPrayer(times);
-            
+
             setCurrentPrayer(current);
             setNextPrayer(next);
 
@@ -169,10 +169,10 @@ const PrayerTimesScreen = () => {
     const handleMadhabChange = (newMadhab) => {
         setMadhab(newMadhab);
         setShowMadhabMenu(false);
-        
+
         // Save preference
         AsyncStorage.setItem('madhab', newMadhab);
-        
+
         // Recalculate
         if (location) {
             calculateAndSetPrayerTimes(location.latitude, location.longitude);
@@ -185,10 +185,10 @@ const PrayerTimesScreen = () => {
     const handleMethodChange = (newMethod) => {
         setCalculationMethod(newMethod);
         setShowMethodMenu(false);
-        
+
         // Save preference
         AsyncStorage.setItem('calculationMethod', newMethod);
-        
+
         // Recalculate
         if (location) {
             calculateAndSetPrayerTimes(location.latitude, location.longitude);
@@ -202,7 +202,7 @@ const PrayerTimesScreen = () => {
         try {
             const savedMadhab = await AsyncStorage.getItem('madhab');
             const savedMethod = await AsyncStorage.getItem('calculationMethod');
-            
+
             if (savedMadhab) setMadhab(savedMadhab);
             if (savedMethod) setCalculationMethod(savedMethod);
         } catch (error) {
@@ -311,7 +311,7 @@ const PrayerTimesScreen = () => {
                             <Text style={styles.selectorText}>{madhab}</Text>
                             <Ionicons name="chevron-down" size={20} color="#666" />
                         </TouchableOpacity>
-                        
+
                         {/* Madhab Dropdown */}
                         {showMadhabMenu && (
                             <View style={styles.dropdown}>

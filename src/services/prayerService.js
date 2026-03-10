@@ -126,13 +126,13 @@ export function getCurrentPrayer(prayerTimes) {
         const coordinates = new Coordinates(0, 0); // Dummy coordinates
         const params = CalculationMethod.MuslimWorldLeague();
         const times = new PrayerTimes(coordinates, prayerTimes.date, params);
-        
+
         const currentPrayer = times.currentPrayer();
         return currentPrayer ? currentPrayer.toLowerCase() : null;
     } catch (error) {
         // Fallback: manual calculation
         const now = new Date();
-        
+
         if (now < prayerTimes.fajr) return null;
         if (now < prayerTimes.sunrise) return PRAYER_NAMES.FAJR;
         if (now < prayerTimes.dhuhr) return PRAYER_NAMES.SUNRISE;
@@ -151,7 +151,7 @@ export function getCurrentPrayer(prayerTimes) {
  */
 export function getNextPrayer(prayerTimes) {
     const now = new Date();
-    
+
     const prayers = [
         { name: PRAYER_NAMES.FAJR, time: prayerTimes.fajr },
         { name: PRAYER_NAMES.SUNRISE, time: prayerTimes.sunrise },
@@ -160,13 +160,13 @@ export function getNextPrayer(prayerTimes) {
         { name: PRAYER_NAMES.MAGHRIB, time: prayerTimes.maghrib },
         { name: PRAYER_NAMES.ISHA, time: prayerTimes.isha },
     ];
-    
+
     for (const prayer of prayers) {
         if (now < prayer.time) {
             return prayer;
         }
     }
-    
+
     // If all prayers passed, return tomorrow's Fajr
     return { name: PRAYER_NAMES.FAJR, time: null };
 }
@@ -179,16 +179,16 @@ export function getNextPrayer(prayerTimes) {
  */
 export function getTimeRemaining(nextPrayerTime) {
     if (!nextPrayerTime) return '00:00:00';
-    
+
     const now = new Date();
     const diff = nextPrayerTime - now;
-    
+
     if (diff <= 0) return '00:00:00';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
+
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
@@ -200,12 +200,12 @@ export function getTimeRemaining(nextPrayerTime) {
  */
 export function formatTime(date) {
     if (!date) return '--:--';
-    
+
     const hours = date.getHours();
     const minutes = date.getMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours % 12 || 12;
-    
+
     return `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
 }
 
@@ -217,7 +217,7 @@ export function getIslamicDate() {
     // This is a simplified version. For accurate Hijri dates, use a library like moment-hijri
     const gregorianDate = new Date();
     const dayOfYear = Math.floor((gregorianDate - new Date(gregorianDate.getFullYear(), 0, 0)) / 86400000);
-    
+
     // Very rough approximation - NOT ACCURATE
     // Use a proper Hijri library for production
     const hijriMonths = [
@@ -225,12 +225,12 @@ export function getIslamicDate() {
         'Jumada al-Awwal', 'Jumada al-Thani', 'Rajab', "Sha'ban",
         'Ramadan', 'Shawwal', 'Dhul-Qi\'dah', 'Dhul-Hijjah'
     ];
-    
+
     // Approximate Hijri year (578 years behind Gregorian)
     const approximateHijriYear = gregorianDate.getFullYear() - 578;
     const approximateMonth = Math.floor((dayOfYear / 365) * 12);
     const approximateDay = Math.floor((dayOfYear % 30.5) + 1);
-    
+
     return `${approximateDay} ${hijriMonths[approximateMonth]} ${approximateHijriYear} AH`;
 }
 

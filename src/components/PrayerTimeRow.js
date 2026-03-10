@@ -33,7 +33,7 @@ const PrayerTimeRow = ({ prayerName, time, isCurrent, isNext }) => {
     };
 
     const { name: iconName, emoji } = getPrayerIcon();
-    
+
     // Capitalize prayer name
     const displayName = prayerName.charAt(0).toUpperCase() + prayerName.slice(1);
 
@@ -50,13 +50,13 @@ const PrayerTimeRow = ({ prayerName, time, isCurrent, isNext }) => {
                     isCurrent && styles.currentIconContainer,
                     isNext && styles.nextIconContainer,
                 ]}>
-                    <Ionicons 
-                        name={iconName} 
-                        size={24} 
-                        color={isCurrent ? '#1F7A4C' : isNext ? '#2ecc71' : '#666'} 
+                    <Ionicons
+                        name={iconName}
+                        size={24}
+                        color={isCurrent ? '#1F7A4C' : isNext ? '#2ecc71' : '#666'}
                     />
                 </View>
-                
+
                 {/* Prayer Name */}
                 <Text style={[
                     styles.prayerName,

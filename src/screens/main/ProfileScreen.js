@@ -59,12 +59,16 @@ const ProfileScreen = () => {
                     console.log('✅ User data refreshed on ProfileScreen');
                 } catch (error) {
                     console.log('⚠️ Could not refresh user on ProfileScreen:', error);
-                    // Check for network errors
-                    if (error.message?.includes('Network') || error.message?.includes('network')) {
+                    // Check for different types of errors
+                    if (error.message?.includes('Network') || error.message?.includes('network') ||
+                        error.message?.includes('timeout') || error.message?.includes('ECONNREFUSED')) {
+                        const title = 'Connection Failed';
+                        const message = 'Cannot connect to server. Please check your internet connection.';
+
                         if (Platform.OS === 'web') {
-                            window.alert('No Internet Connection\\n\\nPlease check your internet connection.');
+                            window.alert(title + '\\n\\n' + message);
                         } else {
-                            Alert.alert('No Internet Connection', 'Please check your internet connection.');
+                            Alert.alert(title, message);
                         }
                     }
                 }
@@ -86,31 +90,18 @@ const ProfileScreen = () => {
     };
 
     /**
-     * Validate phone number
-     */
-    const validatePhoneNumber = () => {
-        if (!phoneNumber.trim()) {
-            setErrors({ phoneNumber: 'Phone number is required' });
-            return false;
-        }
-        if (!/^\+?[\d\s-]{10,}$/.test(phoneNumber)) {
-            setErrors({ phoneNumber: 'Please enter a valid phone number' });
-            return false;
-        }
-        setErrors({});
-        return true;
-    };
-
-    /**
      * Handle save profile changes
      */
     const handleSaveProfile = async () => {
-        if (!validatePhoneNumber()) {
+        // Basic validation - just check if not empty
+        if (!phoneNumber.trim()) {
+            setErrors({ phoneNumber: 'Phone number is required' });
             return;
         }
 
         try {
             setIsSaving(true);
+            setErrors({});
 
             // API call to update profile
             const updatedUser = await userService.updateProfile({
@@ -128,10 +119,16 @@ const ProfileScreen = () => {
             setIsEditing(false);
         } catch (error) {
             console.error('Error updating profile:', error);
-            if (Platform.OS === 'web') {
-                window.alert('Error: ' + (error.message || 'Failed to update profile.'));
+
+            // Check for duplicate phone number error
+            if (error.response?.data?.error === 'Duplicate entry') {
+                setErrors({ phoneNumber: error.response.data.message });
             } else {
-                Alert.alert('Error', error.message || 'Failed to update profile.');
+                if (Platform.OS === 'web') {
+                    window.alert('Error: ' + (error.message || 'Failed to update profile.'));
+                } else {
+                    Alert.alert('Error', error.message || 'Failed to update profile.');
+                }
             }
         } finally {
             setIsSaving(false);

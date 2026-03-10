@@ -70,12 +70,31 @@ const LoginScreen = () => {
             }
             // If successful, navigation will happen automatically via AuthContext
         } catch (error) {
-            if (Platform.OS === 'web') {
-                window.alert('Error: An unexpected error occurred. Please try again.');
-            } else {
-                Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-            }
             console.error('Login error:', error);
+
+            let title = 'Login Error';
+            let message = 'An unexpected error occurred. Please try again.';
+
+            // Check for different types of errors
+            if (error.message?.includes('Network') || error.message?.includes('network')) {
+                title = 'Connection Failed';
+                message = 'Cannot connect to the server. Please check:\\n\\n• Your internet connection is active\\n• WiFi or mobile data is turned on\\n• The server is online and reachable';
+            } else if (error.message?.includes('timeout')) {
+                title = 'Request Timeout';
+                message = 'The server is taking too long to respond. Please try again.';
+            } else if (error.message?.includes('ECONNREFUSED')) {
+                title = 'Server Unavailable';
+                message = 'Cannot reach the server. Please ensure the server is running and accessible.';
+            } else if (error.response?.status >= 500) {
+                title = 'Server Error';
+                message = 'The server encountered an error. Please try again later.';
+            }
+
+            if (Platform.OS === 'web') {
+                window.alert(title + ': ' + message);
+            } else {
+                Alert.alert(title, message);
+            }
         } finally {
             setIsLoading(false);
         }

@@ -60,7 +60,18 @@ apiClient.interceptors.response.use(
         } else if (error.request) {
             // Request made but no response received
             console.error('❌ No response received:', error.request);
-            return Promise.reject(new Error('Network error. Please check your connection.'));
+            console.error('❌ Error code:', error.code);
+
+            // Provide more specific error messages based on error type
+            if (error.code === 'ECONNABORTED') {
+                return Promise.reject(new Error('Request timeout. The server is taking too long to respond.'));
+            } else if (error.code === 'ECONNREFUSED') {
+                return Promise.reject(new Error('Server unavailable. Cannot connect to the server.'));
+            } else if (error.code === 'ERR_NETWORK') {
+                return Promise.reject(new Error('Network error. Please check your internet connection.'));
+            } else {
+                return Promise.reject(new Error('Network error. Unable to reach the server. Please check your connection.'));
+            }
         } else {
             // Something else happened
             console.error('❌ Request setup error:', error.message);

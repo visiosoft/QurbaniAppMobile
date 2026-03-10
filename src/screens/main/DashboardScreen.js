@@ -49,6 +49,9 @@ const DashboardScreen = ({ navigation }) => {
     const [isMarkingReady, setIsMarkingReady] = useState(false);
     const [readyTimestamp, setReadyTimestamp] = useState(null);
     const [countdown, setCountdown] = useState(0);
+    const [isTypeConfirmed, setIsTypeConfirmed] = useState(false);
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [isProcessingMembers, setIsProcessingMembers] = useState(false);
     const timerRef = useRef(null);
 
     // Countdown timer effect (must be in component body, not inside any function)
@@ -64,6 +67,7 @@ const DashboardScreen = ({ navigation }) => {
             if (timerRef.current) clearInterval(timerRef.current);
         }
     }, [qurbaniData?.status, readyTimestamp]);
+
     const fetchQurbaniStatus = async (showLoader = true) => {
         try {
             console.log('📊 fetchQurbaniStatus called, showLoader:', showLoader);
@@ -124,13 +128,14 @@ const DashboardScreen = ({ navigation }) => {
             } catch (refreshError) {
                 console.log('⚠️ Could not refresh user profile:', refreshError);
                 // Check if it's a network error
-                if (refreshError.message?.includes('Network') || refreshError.message?.includes('network')) {
+                if (refreshError.message?.includes('Network') || refreshError.message?.includes('network') ||
+                    refreshError.message?.includes('timeout') || refreshError.message?.includes('ECONNREFUSED')) {
                     if (Platform.OS === 'web') {
-                        window.alert('No Internet Connection\n\nPlease check your internet connection and try again.');
+                        window.alert('Unable to Connect to Server\n\nThe app cannot reach the server. Please check:\n\n• Your internet connection is active\n• WiFi or mobile data is turned on\n• The server is running and accessible');
                     } else {
                         Alert.alert(
-                            'No Internet Connection',
-                            'Please check your internet connection and try again.',
+                            'Connection Failed',
+                            'The app cannot reach the server. Please check:\n\n• Your internet connection is active\n• WiFi or mobile data is turned on\n• The server is running and accessible',
                             [{ text: 'OK' }]
                         );
                     }
@@ -179,23 +184,28 @@ const DashboardScreen = ({ navigation }) => {
             await fetchGroupMembers();
         } catch (error) {
             console.error('Refresh error:', error);
-            // Check for network errors
+            let title = 'Error';
+            let message = 'Failed to refresh status.';
+
+            // Check for different types of errors
             if (error.message?.includes('Network') || error.message?.includes('network')) {
-                if (Platform.OS === 'web') {
-                    window.alert('No Internet Connection\n\nPlease check your internet connection and try again.');
-                } else {
-                    Alert.alert(
-                        'No Internet Connection',
-                        'Please check your internet connection and try again.',
-                        [{ text: 'OK' }]
-                    );
-                }
+                title = 'Connection Failed';
+                message = 'Cannot connect to the server. Please ensure:\n\n• You have an active internet connection\n• WiFi or mobile data is enabled\n• The server is online and reachable';
+            } else if (error.message?.includes('timeout')) {
+                title = 'Request Timeout';
+                message = 'The server is taking too long to respond. Please try again in a moment.';
+            } else if (error.message?.includes('ECONNREFUSED')) {
+                title = 'Server Unavailable';
+                message = 'Cannot reach the server. Please verify the server is running and accessible.';
+            } else if (error.response?.status >= 500) {
+                title = 'Server Error';
+                message = 'The server encountered an error. Please try again later.';
+            }
+
+            if (Platform.OS === 'web') {
+                window.alert(title + '\n\n' + message);
             } else {
-                if (Platform.OS === 'web') {
-                    window.alert('Error: Failed to refresh status.');
-                } else {
-                    Alert.alert('Error', 'Failed to refresh status.');
-                }
+                Alert.alert(title, message, [{ text: 'OK' }]);
             }
         } finally {
             setIsRefreshing(false);
@@ -229,9 +239,141 @@ const DashboardScreen = ({ navigation }) => {
     };
 
     /**
+     * Handle qurbani type checkbox toggle
+     */
+    const handleTypeToggle = () => {
+        setIsTypeConfirmed(!isTypeConfirmed);
+    };
+
+    /**
+     * Toggle member selection for group members
+     */
+    const toggleMemberSelection = (memberId) => {
+        setSelectedMembers((prev) => {
+            if (prev.includes(memberId)) {
+                return prev.filter((id) => id !== memberId);
+            } else {
+                // No capacity check here - just allow selection
+                return [...prev, memberId];
+            }
+        });
+    };
+
+    /**
+     * Process selected members (mark multiple as ready)
+     */
+    const handleProcessSelectedMembers = async () => {
+        if (selectedMembers.length === 0) {
+            const message = 'Please select at least one member to proceed.';
+            if (Platform.OS === 'web') {
+                window.alert('No Selection\n\n' + message);
+            } else {
+                Alert.alert('No Selection', message);
+            }
+            return;
+        }
+
+        const selectedNames = groupMembers
+            .filter((m) => selectedMembers.includes(m.id))
+            .map((m) => m.name)
+            .join(', ');
+
+        const confirmMessage = `Proceed with Qurbani for ${selectedMembers.length} member(s)?\n\n${selectedNames}`;
+
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(confirmMessage);
+            if (!confirmed) return;
+
+            try {
+                setIsProcessingMembers(true);
+
+                // Process each selected member
+                for (const memberId of selectedMembers) {
+                    await groupService.markMemberReady(memberId);
+                }
+
+                window.alert(`Success!\n\n${selectedMembers.length} member(s) marked as ready for Qurbani!`);
+                setSelectedMembers([]);
+                await fetchGroupMembers();
+            } catch (error) {
+                console.error('Error processing members:', error);
+                let errorMsg = 'Failed to process some members.';
+
+                if (error.message?.includes('Network') || error.message?.includes('network') ||
+                    error.message?.includes('timeout') || error.message?.includes('ECONNREFUSED')) {
+                    errorMsg = 'Cannot connect to server. Please check your internet connection and try again.';
+                } else if (error.message) {
+                    errorMsg = error.message;
+                }
+
+                window.alert('Error\n\n' + errorMsg);
+            } finally {
+                setIsProcessingMembers(false);
+            }
+        } else {
+            Alert.alert(
+                'Confirm',
+                confirmMessage,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Confirm',
+                        onPress: async () => {
+                            try {
+                                setIsProcessingMembers(true);
+
+                                // Process each selected member
+                                for (const memberId of selectedMembers) {
+                                    await groupService.markMemberReady(memberId);
+                                }
+
+                                Alert.alert(
+                                    'Success',
+                                    `${selectedMembers.length} member(s) marked as ready for Qurbani!`
+                                );
+                                setSelectedMembers([]);
+                                await fetchGroupMembers();
+                            } catch (error) {
+                                console.error('Error processing members:', error);
+                                let errorTitle = 'Error';
+                                let errorMsg = 'Failed to process some members.';
+
+                                if (error.message?.includes('Network') || error.message?.includes('network') ||
+                                    error.message?.includes('timeout') || error.message?.includes('ECONNREFUSED')) {
+                                    errorTitle = 'Connection Failed';
+                                    errorMsg = 'Cannot connect to server. Please check your internet connection and try again.';
+                                } else if (error.response?.status >= 500) {
+                                    errorTitle = 'Server Error';
+                                    errorMsg = 'The server encountered an error. Please try again later.';
+                                } else if (error.message) {
+                                    errorMsg = error.message;
+                                }
+
+                                Alert.alert(errorTitle, errorMsg);
+                            } finally {
+                                setIsProcessingMembers(false);
+                            }
+                        },
+                    },
+                ]
+            );
+        }
+    };
+
+    /**
      * Mark Ready
      */
     const handleMarkReady = async () => {
+        // Check if type is confirmed when status is pending
+        if (qurbaniData?.status === STATUS_TYPES.PENDING && !isTypeConfirmed) {
+            const message = 'Please confirm your Qurbani type by checking the box before proceeding.';
+            if (Platform.OS === 'web') {
+                window.alert('Type Confirmation Required\n\n' + message);
+            } else {
+                Alert.alert('Type Confirmation Required', message);
+            }
+            return;
+        }
         // Web-compatible confirmation
         if (Platform.OS === 'web') {
             const confirmed = window.confirm(
@@ -317,6 +459,23 @@ const DashboardScreen = ({ navigation }) => {
         fetchGroupMembers();
     }, []); // Run once on mount - avoid infinite loops
 
+    // Set up header refresh button
+    useEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity
+                    onPress={() => {
+                        console.log('🔄 Header refresh button pressed');
+                        refreshQurbaniData();
+                    }}
+                    style={{ paddingRight: 16 }}
+                >
+                    <Ionicons name="refresh" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation]);
+
     // Refresh data when screen comes into focus (e.g., after navigating back)
     useFocusEffect(
         useCallback(() => {
@@ -349,16 +508,19 @@ const DashboardScreen = ({ navigation }) => {
                 navigation.navigate('Members');
             } catch (error) {
                 console.log('❌ Could not refresh user before navigation:', error);
+                let title = 'Connection Issue';
+                let message = 'Could not refresh data. Navigating with cached information.';
+
                 // Check for network errors
-                if (error.message?.includes('Network') || error.message?.includes('network')) {
+                if (error.message?.includes('Network') || error.message?.includes('network') ||
+                    error.message?.includes('timeout') || error.message?.includes('ECONNREFUSED')) {
+                    title = 'Connection Failed';
+                    message = 'Cannot connect to server. Please check your internet connection and try again.';
+
                     if (Platform.OS === 'web') {
-                        window.alert('No Internet Connection\n\nPlease check your internet connection and try again.');
+                        window.alert(title + '\n\n' + message);
                     } else {
-                        Alert.alert(
-                            'No Internet Connection',
-                            'Please check your internet connection and try again.',
-                            [{ text: 'OK' }]
-                        );
+                        Alert.alert(title, message, [{ text: 'OK' }]);
                     }
                 } else {
                     // Navigate anyway with cached data
@@ -410,109 +572,137 @@ const DashboardScreen = ({ navigation }) => {
                 </View>
 
                 {/* ================= QURBANI STATUS CARD ================= */}
-                <QurbaniStatusCard
-                    status={
-                        qurbaniData?.status === 'done'
-                            ? 'Qurbani Completed'
-                            : qurbaniData?.status === 'ready'
-                                ? 'Requested for Qurbani'
-                                : 'Pending'
-                    }
-                    waitTime={
-                        qurbaniData?.status === 'ready' && countdown > 0
-                            ? `${Math.floor(countdown / 3600)}h ${Math.floor((countdown % 3600) / 60)}m`
-                            : '0h 0m'
-                    }
-                    qurbaniType={
-                        QURBANI_TYPE_LABELS[qurbaniData?.qurbaniType] ||
-                        qurbaniData?.qurbaniType ||
-                        'Not Set'
-                    }
-                    accountType={isIndividual ? 'Individual' : 'Group Account'}
-                    statusColor={
-                        qurbaniData?.status === 'done'
-                            ? '#4CAF50'
-                            : qurbaniData?.status === 'ready'
-                                ? '#E67E22'
-                                : '#FF9800'
-                    }
-                    description={
-                        qurbaniData?.status === 'done'
-                            ? '🎉 Congratulations! Your Qurbani has been completed.'
-                            : qurbaniData?.status === 'ready'
-                                ? 'Your Qurbani request is received.'
-                                : 'Complete Jamarat to request for Qurbani.'
-                    }
-                />
+                {/* Only show for individual users - group representatives manage from family members section */}
+                {isIndividual && (
+                    <>
+                        <QurbaniStatusCard
+                            status={
+                                qurbaniData?.status === 'done'
+                                    ? 'Qurbani Completed'
+                                    : qurbaniData?.status === 'ready'
+                                        ? 'Requested for Qurbani'
+                                        : 'Pending'
+                            }
+                            waitTime={
+                                qurbaniData?.status === 'ready' && countdown > 0
+                                    ? `${Math.floor(countdown / 3600)}h ${Math.floor((countdown % 3600) / 60)}m`
+                                    : '0h 0m'
+                            }
+                            qurbaniType={
+                                QURBANI_TYPE_LABELS[qurbaniData?.qurbaniType] ||
+                                qurbaniData?.qurbaniType ||
+                                'Not Set'
+                            }
+                            userName={user?.name || 'User'}
+                            allowTypeSelection={qurbaniData?.status === STATUS_TYPES.PENDING}
+                            isTypeSelected={isTypeConfirmed}
+                            onTypeToggle={handleTypeToggle}
+                            statusColor={
+                                qurbaniData?.status === 'done'
+                                    ? '#4CAF50'
+                                    : qurbaniData?.status === 'ready'
+                                        ? '#E67E22'
+                                        : '#FF9800'
+                            }
+                            description={
+                                qurbaniData?.status === 'done'
+                                    ? '🎉 Congratulations! Your Qurbani has been completed.'
+                                    : qurbaniData?.status === 'ready'
+                                        ? 'Your Qurbani request is received.'
+                                        : 'Tick the checkbox to confirm your Qurbani type. Proceed for qurbani once you are ready.\n\nجب آپ تیار ہوں تو قربانی کے عمل کے لیے آگے بڑھیں'
+                            }
+                        />
 
-                {/* Action */}
-                {canMarkReady && (
-                    <Pressable
-                        onPress={handleMarkReady}
-                        style={({ pressed }) => [
-                            styles.proceedButton,
-                            pressed && { opacity: 0.7 }
-                        ]}
-                    >
-                        <Text style={styles.proceedText}>Proceed for Qurbani</Text>
-                        <Ionicons name="chevron-forward" size={22} color="#fff" />
-                    </Pressable>
+                        {/* Action */}
+                        {canMarkReady && (
+                            <Pressable
+                                onPress={handleMarkReady}
+                                style={({ pressed }) => [
+                                    styles.proceedButton,
+                                    pressed && { opacity: 0.7 }
+                                ]}
+                            >
+                                <Text style={styles.proceedText}>Proceed for Qurbani</Text>
+                                <Ionicons name="chevron-forward" size={22} color="#fff" />
+                            </Pressable>
+                        )}
+                    </>
                 )}
 
 
 
 
-                {/* ================= HISTORY ================= */}
-                <View style={styles.historyCard}>
-                    <Text style={styles.historyTitle}>Status History</Text>
+                {/* ================= HISTORY / FAMILY MEMBERS ================= */}
+                {user?.accountType === 'group' && groupMembers.length > 0 ? (
+                    <View style={styles.membersSection}>
+                        <View style={styles.membersSectionHeader}>
+                            <Text style={styles.membersSectionTitle}>Family Members</Text>
+                            {selectedMembers.length > 0 && (
+                                <Text style={styles.selectedCount}>
+                                    {selectedMembers.length} Selected
+                                </Text>
+                            )}
+                        </View>
 
-                    <HistoryItem
-                        icon="checkmark-circle"
-                        color="#2ecc71"
-                        title="Jamarat Completed"
-                        subtitle="Ready for Qurbani"
-                        time="Just now"
-                    />
+                        {groupMembers.map((member) => {
+                            const memberStatus = member.qurbaniStatus || member.status;
+                            const isPending = memberStatus === STATUS_TYPES.PENDING || memberStatus === 'pending';
+                            const isSelected = selectedMembers.includes(member.id);
+                            const isRepresentative = member.isRepresentative;
 
-                    {/* Show group members' qurbani status if user is in a group */}
-                    {user?.accountType === 'group' && groupMembers.length > 0 ? (
-                        <>
-                            <View style={styles.historySeparator}>
-                                <Text style={styles.historySeparatorText}>Family Members Qurbani Status</Text>
-                            </View>
-                            {groupMembers.map((member) => (
-                                <HistoryItem
-                                    key={member.id}
-                                    icon={
-                                        member.qurbaniStatus === 'ready' || member.qurbaniStatus === 'done'
-                                            ? 'checkmark-circle'
-                                            : member.qurbaniStatus === 'pending'
-                                                ? 'time-outline'
-                                                : 'alert-circle'
-                                    }
-                                    color={
-                                        member.qurbaniStatus === 'ready' || member.qurbaniStatus === 'done'
-                                            ? '#2ecc71'
-                                            : member.qurbaniStatus === 'pending'
-                                                ? '#f39c12'
-                                                : '#e74c3c'
-                                    }
-                                    title={`${member.name}${member.isRepresentative ? ' (You)' : ''}`}
-                                    subtitle={`Qurbani: ${member.qurbaniStatus === 'ready'
-                                        ? 'Requested'
-                                        : member.qurbaniStatus === 'done'
-                                            ? 'Completed'
-                                            : member.qurbaniStatus === 'pending'
-                                                ? 'Pending'
-                                                : member.qurbaniStatus
-                                        }`}
-                                    time={member.qurbaniType || ''}
-                                    highlight={member.qurbaniStatus === 'ready'}
-                                />
-                            ))}
-                        </>
-                    ) : (
-                        /* Show individual user's qurbani status */
+                            return (
+                                <View key={member.id} style={styles.memberCardWrapper}>
+                                    <QurbaniStatusCard
+                                        status={
+                                            memberStatus === 'done'
+                                                ? 'Qurbani Completed'
+                                                : memberStatus === 'ready'
+                                                    ? 'Requested for Qurbani'
+                                                    : 'Pending'
+                                        }
+                                        waitTime="0h 0m"
+                                        qurbaniType={
+                                            QURBANI_TYPE_LABELS[member.qurbaniType] ||
+                                            member.qurbaniType ||
+                                            'Not Set'
+                                        }
+                                        userName={`${member.name}${isRepresentative ? ' (You)' : ''}`}
+                                        allowTypeSelection={isPending}
+                                        isTypeSelected={isSelected}
+                                        onTypeToggle={() => toggleMemberSelection(member.id)}
+                                        statusColor={
+                                            memberStatus === 'done'
+                                                ? '#4CAF50'
+                                                : memberStatus === 'ready'
+                                                    ? '#E67E22'
+                                                    : '#FF9800'
+                                        }
+                                        description={
+                                            memberStatus === 'done'
+                                                ? '🎉 Qurbani has been completed.'
+                                                : memberStatus === 'ready'
+                                                    ? 'Qurbani request is received.'
+                                                    : isPending
+                                                        ? 'Tick to select for Qurbani. Proceed for qurbani once you are ready.\n\nجب آپ تیار ہوں تو قربانی کے عمل کے لیے آگے بڑھیں'
+                                                        : 'Status pending.'
+                                        }
+                                    />
+                                </View>
+                            );
+                        })}
+                    </View>
+                ) : (
+                    <View style={styles.historyCard}>
+                        <Text style={styles.historyTitle}>Status History</Text>
+
+                        <HistoryItem
+                            icon="checkmark-circle"
+                            color="#2ecc71"
+                            title="Jamarat Completed"
+                            subtitle="Ready for Qurbani"
+                            time="Just now"
+                        />
+
                         <HistoryItem
                             icon="alert-circle"
                             color="#f39c12"
@@ -521,8 +711,34 @@ const DashboardScreen = ({ navigation }) => {
                             time=""
                             highlight={qurbaniData?.status === 'ready'}
                         />
-                    )}
-                </View>
+                    </View>
+                )}
+
+                {/* Floating Action Button for Group Members */}
+                {user?.accountType === 'group' && selectedMembers.length > 0 && (
+                    <TouchableOpacity
+                        style={styles.floatingButton}
+                        onPress={handleProcessSelectedMembers}
+                        disabled={isProcessingMembers}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.fabContent}>
+                            {isProcessingMembers ? (
+                                <>
+                                    <Text style={styles.fabText}>Processing...</Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Ionicons name="checkmark-done" size={24} color="#fff" />
+                                    <Text style={styles.fabText}>
+                                        Procced for Qurbani ({selectedMembers.length})
+                                    </Text>
+                                    <Ionicons name="arrow-forward" size={20} color="#fff" />
+                                </>
+                            )}
+                        </View>
+                    </TouchableOpacity>
+                )}
 
             </ScrollView>
         </View>
@@ -798,6 +1014,74 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#555',
         textAlign: 'center',
+    },
+
+    /* MEMBERS SECTION */
+    membersSection: {
+        marginTop: 10,
+        paddingBottom: 100, // Extra padding for floating button
+    },
+
+    membersSectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+
+    membersSectionTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+
+    selectedCount: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#2e8b57',
+        backgroundColor: '#2e8b5720',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+
+    memberCardWrapper: {
+        marginBottom: 10,
+    },
+
+    /* FLOATING BUTTON */
+    floatingButton: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: '#2e8b57',
+        borderRadius: 30,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+        zIndex: 1000,
+    },
+
+    fabContent: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+    },
+
+    fabText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
 });
 

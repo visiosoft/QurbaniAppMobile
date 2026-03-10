@@ -9,10 +9,12 @@ import {
     RefreshControl,
     Alert,
     Platform,
+    TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import groupService from '../../services/groupService';
-import { MemberCard } from '../../components/Card';
+import QurbaniStatusCard from '../../components/QurbaniStatusCard';
 import Loading from '../../components/Loading';
 import EmptyState from '../../components/EmptyState';
 import {
@@ -33,7 +35,8 @@ const GroupMembersScreen = () => {
     const [members, setMembers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [markingMemberId, setMarkingMemberId] = useState(null);
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
     const hasMountedRef = useRef(false);
 
     /**
@@ -56,12 +59,16 @@ const GroupMembersScreen = () => {
             } catch (refreshError) {
                 console.log('⚠️ Could not refresh user:', refreshError);
                 // Check for network errors
-                if (refreshError.message?.includes('Network') || refreshError.message?.includes('network')) {
-                    const errorMessage = 'No Internet Connection\n\nPlease check your internet connection and try again.';
+                if (refreshError.message?.includes('Network') || refreshError.message?.includes('network') ||
+                    refreshError.message?.includes('timeout') || refreshError.message?.includes('ECONNREFUSED')) {
+                    const errorMessage = 'Unable to Connect to Server\n\nThe app cannot reach the server. Please check:\n\n• Your internet connection is active\n• WiFi or mobile data is turned on\n• The server is running and accessible\n• Your network allows the connection';
                     if (Platform.OS === 'web') {
                         window.alert(errorMessage);
                     } else {
-                        Alert.alert('No Internet Connection', 'Please check your internet connection and try again.');
+                        Alert.alert(
+                            'Connection Failed',
+                            'The app cannot reach the server. Please check:\n\n• Your internet connection is active\n• WiFi or mobile data is turned on\n• The server is running and accessible\n• Your network allows the connection'
+                        );
                     }
                     return; // Stop execution if no internet
                 }
@@ -78,21 +85,36 @@ const GroupMembersScreen = () => {
             console.error('❌ Error fetching members:', error);
             console.error('❌ Error details:', error.message, error.stack);
 
-            // Check for network errors
+            let title = 'Error';
+            let message = '';
+
+            // Check for different types of errors
             if (error.message?.includes('Network') || error.message?.includes('network')) {
-                const errorMessage = 'No Internet Connection\n\nPlease check your internet connection and try again.';
-                if (Platform.OS === 'web') {
-                    window.alert(errorMessage);
-                } else {
-                    Alert.alert('No Internet Connection', 'Please check your internet connection and try again.');
-                }
+                title = 'Connection Failed';
+                message = 'Cannot connect to the server. Please ensure:\n\n• You have an active internet connection\n• WiFi or mobile data is enabled\n• The server is online and reachable\n\nTry pulling down to refresh once connected.';
+            } else if (error.message?.includes('timeout')) {
+                title = 'Request Timeout';
+                message = 'The server is taking too long to respond. This could be due to:\n\n• Slow internet connection\n• Server is busy or overloaded\n• Network congestion\n\nPlease try again in a moment.';
+            } else if (error.message?.includes('ECONNREFUSED')) {
+                title = 'Server Unavailable';
+                message = 'Cannot reach the server. Please verify:\n\n• The server is running\n• You are connected to the correct network\n• The server address is correct\n• No firewall is blocking the connection';
+            } else if (error.response?.status === 401) {
+                title = 'Authentication Failed';
+                message = 'Your session has expired. Please log out and log in again.';
+            } else if (error.response?.status === 403) {
+                title = 'Access Denied';
+                message = 'You do not have permission to view group members. Please contact your administrator.';
+            } else if (error.response?.status >= 500) {
+                title = 'Server Error';
+                message = 'The server encountered an error. Please try again later or contact support if the problem persists.';
             } else {
-                const errorMessage = error.message || 'Failed to load group members. Please try again.';
-                if (Platform.OS === 'web') {
-                    window.alert('Error: ' + errorMessage);
-                } else {
-                    Alert.alert('Error', errorMessage);
-                }
+                message = error.message || 'Failed to load group members. Please pull down to refresh and try again.';
+            }
+
+            if (Platform.OS === 'web') {
+                window.alert(title + '\n\n' + message);
+            } else {
+                Alert.alert(title, message);
             }
         } finally {
             setIsLoading(false);
@@ -132,43 +154,82 @@ const GroupMembersScreen = () => {
     };
 
     /**
-     * Mark member as ready
+     * Toggle member selection
      */
-    const handleMarkMemberReady = async (memberId) => {
-        // Validate capacity before marking
-        if (!canMarkMoreReady()) {
-            const qurbaniType = user?.qurbaniType;
-            const maxAllowed = MAX_MEMBERS_PER_ANIMAL[qurbaniType];
-
-            const message = `Maximum ${maxAllowed} member(s) allowed for ${QURBANI_TYPE_LABELS[qurbaniType]}. You have already marked the maximum number of members as ready.`;
-            if (Platform.OS === 'web') {
-                window.alert('Capacity Reached\n\n' + message);
+    const toggleMemberSelection = (memberId) => {
+        setSelectedMembers((prev) => {
+            if (prev.includes(memberId)) {
+                return prev.filter((id) => id !== memberId);
             } else {
-                Alert.alert('Capacity Reached', message);
+                // Check if we can add more
+                const currentReady = getCurrentReadyCount();
+                const maxAllowed = MAX_MEMBERS_PER_ANIMAL[user?.qurbaniType];
+                const wouldExceed = currentReady + prev.length + 1 > maxAllowed;
+
+                if (wouldExceed) {
+                    const message = `Maximum ${maxAllowed} member(s) allowed for ${QURBANI_TYPE_LABELS[user?.qurbaniType]}. You can only select ${maxAllowed - currentReady} more member(s).`;
+                    if (Platform.OS === 'web') {
+                        window.alert('Selection Limit Reached\n\n' + message);
+                    } else {
+                        Alert.alert('Selection Limit Reached', message);
+                    }
+                    return prev;
+                }
+                return [...prev, memberId];
+            }
+        });
+    };
+
+    /**
+     * Process selected members (mark multiple as ready)
+     */
+    const handleProcessSelected = async () => {
+        if (selectedMembers.length === 0) {
+            const message = 'Please select at least one member to proceed.';
+            if (Platform.OS === 'web') {
+                window.alert('No Selection\n\n' + message);
+            } else {
+                Alert.alert('No Selection', message);
             }
             return;
         }
 
-        // Find member details
-        const member = members.find((m) => m.id === memberId);
+        const selectedNames = members
+            .filter((m) => selectedMembers.includes(m.id))
+            .map((m) => m.name)
+            .join(', ');
 
-        const confirmMessage = `Mark ${member?.name}'s Qurbani as ready?`;
+        const confirmMessage = `Proceed with Qurbani for ${selectedMembers.length} member(s)?\n\n${selectedNames}`;
 
         if (Platform.OS === 'web') {
             const confirmed = window.confirm(confirmMessage);
             if (!confirmed) return;
 
             try {
-                setMarkingMemberId(memberId);
-                await groupService.markMemberReady(memberId);
-                window.alert(`Success!\n\n${member?.name}'s Qurbani has been marked as ready!`);
-                // Force refresh to get updated status
+                setIsProcessing(true);
+
+                // Process each selected member
+                for (const memberId of selectedMembers) {
+                    await groupService.markMemberReady(memberId);
+                }
+
+                window.alert(`Success!\n\n${selectedMembers.length} member(s) marked as ready for Qurbani!`);
+                setSelectedMembers([]);
                 await fetchMembers(false);
             } catch (error) {
-                console.error('Error marking member ready:', error);
-                window.alert('Error: ' + (error.message || 'Failed to mark member as ready.'));
+                console.error('Error processing members:', error);
+                let errorMsg = 'Failed to process some members.';
+
+                if (error.message?.includes('Network') || error.message?.includes('network') ||
+                    error.message?.includes('timeout') || error.message?.includes('ECONNREFUSED')) {
+                    errorMsg = 'Cannot connect to server. Please check your internet connection and try again.';
+                } else if (error.message) {
+                    errorMsg = error.message;
+                }
+
+                window.alert('Error\n\n' + errorMsg);
             } finally {
-                setMarkingMemberId(null);
+                setIsProcessing(false);
             }
         } else {
             Alert.alert(
@@ -180,19 +241,38 @@ const GroupMembersScreen = () => {
                         text: 'Confirm',
                         onPress: async () => {
                             try {
-                                setMarkingMemberId(memberId);
-                                await groupService.markMemberReady(memberId);
-                                // Force refresh to get updated status
-                                await fetchMembers(false);
+                                setIsProcessing(true);
+
+                                // Process each selected member
+                                for (const memberId of selectedMembers) {
+                                    await groupService.markMemberReady(memberId);
+                                }
+
                                 Alert.alert(
                                     'Success',
-                                    `${member?.name}'s Qurbani has been marked as ready!`
+                                    `${selectedMembers.length} member(s) marked as ready for Qurbani!`
                                 );
+                                setSelectedMembers([]);
+                                await fetchMembers(false);
                             } catch (error) {
-                                console.error('Error marking member ready:', error);
-                                Alert.alert('Error', error.message || 'Failed to mark member as ready.');
+                                console.error('Error processing members:', error);
+                                let errorTitle = 'Error';
+                                let errorMsg = 'Failed to process some members.';
+
+                                if (error.message?.includes('Network') || error.message?.includes('network') ||
+                                    error.message?.includes('timeout') || error.message?.includes('ECONNREFUSED')) {
+                                    errorTitle = 'Connection Failed';
+                                    errorMsg = 'Cannot connect to server. Please check your internet connection and try again.';
+                                } else if (error.response?.status >= 500) {
+                                    errorTitle = 'Server Error';
+                                    errorMsg = 'The server encountered an error. Please try again later.';
+                                } else if (error.message) {
+                                    errorMsg = error.message;
+                                }
+
+                                Alert.alert(errorTitle, errorMsg);
                             } finally {
-                                setMarkingMemberId(null);
+                                setIsProcessing(false);
                             }
                         },
                     },
@@ -264,26 +344,63 @@ const GroupMembersScreen = () => {
             {/* Summary Header */}
             <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { textAlign: 'center', width: '100%', fontSize: 14 }]}>
+                    <Text style={[styles.summaryLabel, { textAlign: 'center', width: '100%', fontSize: 17, fontWeight: 'bold', lineHeight: 28 }]}>
                         لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لَا شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لَا شَرِيكَ لَكَ
                     </Text>
                 </View>
-               
+
             </View>
 
             {/* Members List */}
             <FlatList
                 data={members}
-                extraData={members} // Force re-render when members data changes
+                extraData={[members, selectedMembers]} // Force re-render when members or selections change
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => {
-                    console.log(`🎴 Rendering member card: ${item.name}, qurbaniStatus: ${item.qurbaniStatus}, status: ${item.status}`);
+                    const memberStatus = item.qurbaniStatus || item.status;
+                    const isPending = memberStatus === STATUS_TYPES.PENDING;
+                    const isSelected = selectedMembers.includes(item.id);
+
+                    console.log(`🎴 Rendering member: ${item.name}, status: ${memberStatus}, selected: ${isSelected}`);
+
                     return (
-                        <MemberCard
-                            member={item}
-                            onMarkReady={handleMarkMemberReady}
-                            isDisabled={!canMarkMore && (item.qurbaniStatus === STATUS_TYPES.PENDING || item.status === STATUS_TYPES.PENDING)}
-                        />
+                        <View style={styles.cardWrapper}>
+                            <QurbaniStatusCard
+                                status={
+                                    memberStatus === 'done'
+                                        ? 'Qurbani Completed'
+                                        : memberStatus === 'ready'
+                                            ? 'Requested for Qurbani'
+                                            : 'Pending'
+                                }
+                                waitTime="0h 0m"
+                                qurbaniType={
+                                    QURBANI_TYPE_LABELS[item.qurbaniType] ||
+                                    item.qurbaniType ||
+                                    'Not Set'
+                                }
+                                userName={item.name}
+                                allowTypeSelection={isPending}
+                                isTypeSelected={isSelected}
+                                onTypeToggle={() => toggleMemberSelection(item.id)}
+                                statusColor={
+                                    memberStatus === 'done'
+                                        ? '#4CAF50'
+                                        : memberStatus === 'ready'
+                                            ? '#E67E22'
+                                            : '#FF9800'
+                                }
+                                description={
+                                    memberStatus === 'done'
+                                        ? '🎉 Qurbani has been completed.'
+                                        : memberStatus === 'ready'
+                                            ? 'Qurbani request is received.'
+                                            : isPending
+                                                ? 'Tick to select for Qurbani. Proceed for qurbani once you are ready.\n\nجب آپ تیار ہوں تو قربانی کے عمل کے لیے آگے بڑھیں'
+                                                : 'Status pending.'
+                                }
+                            />
+                        </View>
                     );
                 }}
                 refreshControl={
@@ -298,11 +415,44 @@ const GroupMembersScreen = () => {
                 }
                 contentContainerStyle={styles.listContent}
                 ListHeaderComponent={
-                    <Text style={styles.listHeader}>
-                        Total Members: {members.length}
-                    </Text>
+                    <View style={styles.headerContainer}>
+                        <Text style={styles.listHeader}>
+                            Total Members: {members.length}
+                        </Text>
+                        {selectedMembers.length > 0 && (
+                            <Text style={styles.selectedCount}>
+                                {selectedMembers.length} Selected
+                            </Text>
+                        )}
+                    </View>
                 }
             />
+
+            {/* Floating Action Button */}
+            {selectedMembers.length > 0 && (
+                <TouchableOpacity
+                    style={styles.floatingButton}
+                    onPress={handleProcessSelected}
+                    disabled={isProcessing}
+                    activeOpacity={0.8}
+                >
+                    <View style={styles.fabContent}>
+                        {isProcessing ? (
+                            <>
+                                <Text style={styles.fabText}>Processing...</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Ionicons name="checkmark-done" size={24} color="#fff" />
+                                <Text style={styles.fabText}>
+                                    Procced for Qurbani ({selectedMembers.length})
+                                </Text>
+                                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                            </>
+                        )}
+                    </View>
+                </TouchableOpacity>
+            )}
         </View>
     );
 };
@@ -359,14 +509,60 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     listContent: {
-        paddingBottom: SPACING.lg,
+        paddingBottom: 100, // Extra padding for floating button
+    },
+    headerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
     },
     listHeader: {
         fontSize: FONT_SIZES.md,
         fontWeight: '600',
         color: COLORS.textPrimary,
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
+    },
+    selectedCount: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        backgroundColor: `${COLORS.primary}20`,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    cardWrapper: {
+        marginBottom: SPACING.sm,
+    },
+    floatingButton: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: COLORS.primary,
+        borderRadius: 30,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    fabContent: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+    },
+    fabText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
 });
 
