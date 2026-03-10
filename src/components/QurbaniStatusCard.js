@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -57,124 +58,133 @@ const QurbaniStatusCard = ({
     const { icon, color } = getStatusIcon();
 
     return (
-        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-            {/* Title */}
-            <Text style={styles.title}>Qurbani Status</Text>
-
-            {/* Status Section */}
-            <View style={styles.statusRow}>
-                <View style={[styles.iconContainer, { backgroundColor: color }]}>
-                    <Ionicons name={icon} size={24} color="#fff" />
-                </View>
-                <Text style={[styles.statusText, { color: statusColor }]}>
-                    {status}
-                </Text>
-            </View>
-
-            {/* Description */}
-            <Text style={styles.description}>{description}</Text>
-
-            {/* Wait Time */}
-            {waitTime && waitTime !== '0h 0m' && (
-                <Text style={styles.waitTime}>
-                    Estimated wait before completion: {waitTime}
-                </Text>
-            )}
-
-            {/* Divider */}
-            <View style={styles.divider} />
-
-            {/* Bottom Info Section */}
-            <View style={styles.bottomRow}>
-                {/* Type Column with Checkbox */}
-                <View style={styles.column}>
-                    <Text style={styles.label}>{allowTypeSelection ? 'Action' : 'Type'}</Text>
-                    {allowTypeSelection ? (
-                        <TouchableOpacity
-                            style={styles.checkboxRow}
-                            onPress={onTypeToggle}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.checkbox, isTypeSelected && styles.checkboxSelected]}>
-                                {isTypeSelected && <Ionicons name="checkmark" size={18} color="#fff" />}
-                            </View>
-                            <Text style={styles.checkboxLabel}>Mark for Qurbani</Text>
-                        </TouchableOpacity>
-                    ) : (
-                        <Text style={styles.value}>{qurbaniType}</Text>
-                    )}
+        <Animated.View style={[{ opacity: fadeAnim }, styles.containerWrapper]}>
+            <LinearGradient
+                colors={['#FFF9E6', '#F3EDFF', '#E8FFF0']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.container}
+            >
+                {/* Status Section */}
+                <View style={styles.statusRow}>
+                    <View style={[styles.iconContainer, { backgroundColor: color }]}>
+                        <Ionicons name={icon} size={24} color="#fff" />
+                    </View>
+                    <Text style={[styles.statusText, { color: statusColor }]}>
+                        {status}
+                    </Text>
                 </View>
 
-                {/* Vertical Divider */}
-                <View style={styles.verticalDivider} />
+                {/* Description */}
+                <Text style={styles.description}>{description}</Text>
 
-                {/* Name Column */}
-                <View style={styles.column}>
-                    <Text style={styles.label}>Name</Text>
-                    <Text style={styles.value}>{userName}</Text>
+                {/* Wait Time */}
+                {waitTime && waitTime !== '0h 0m' && (
+                    <Text style={styles.waitTime}>
+                        Estimated wait before completion: {waitTime}
+                    </Text>
+                )}
+
+                {/* Divider */}
+                <View style={styles.divider} />
+
+                {/* Bottom Info Section */}
+                <View style={styles.bottomRow}>
+                    {/* Type Column with Checkbox */}
+                    <View style={styles.column}>
+                        <Text style={styles.label}>{allowTypeSelection ? 'Action' : 'Type'}</Text>
+                        {allowTypeSelection ? (
+                            <TouchableOpacity
+                                style={styles.checkboxRow}
+                                onPress={onTypeToggle}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.checkbox, isTypeSelected && styles.checkboxSelected]}>
+                                    {isTypeSelected && <Ionicons name="checkmark" size={18} color="#fff" />}
+                                </View>
+                                <Text style={styles.checkboxLabel}>Mark for Qurbani</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <Text style={styles.value}>{qurbaniType}</Text>
+                        )}
+                    </View>
+
+                    {/* Vertical Divider */}
+                    <View style={styles.verticalDivider} />
+
+                    {/* Name Column */}
+                    <View style={styles.column}>
+                        <Text style={styles.label}>Name</Text>
+                        <Text style={styles.value}>{userName}</Text>
+                    </View>
                 </View>
-            </View>
+            </LinearGradient>
         </Animated.View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        borderRadius: 20,
-        backgroundColor: '#F6E2A6',
-        padding: 20,
-        marginHorizontal: 16,
-        marginVertical: 10,
+    containerWrapper: {
+        marginHorizontal: 20,
+        marginVertical: 8,
+        borderRadius: 16,
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
             height: 2,
         },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.08,
         shadowRadius: 8,
-        elevation: 4,
+        elevation: 2,
+    },
+    container: {
+        borderRadius: 16,
+        padding: 16,
     },
     title: {
         fontSize: 20,
-        fontWeight: 'bold',
-        color: '#000',
+        fontWeight: '600',
+        color: '#1C1C1E',
+        letterSpacing: -0.3,
         textAlign: 'center',
-        marginBottom: 15,
+        marginBottom: 20,
     },
     statusRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 12,
     },
     iconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
     },
     statusText: {
-        fontSize: 22,
-        fontWeight: 'bold',
+        fontSize: 20,
+        fontWeight: '600',
         flex: 1,
+        letterSpacing: -0.3,
     },
     description: {
-        fontSize: 16,
-        color: '#555',
+        fontSize: 15,
+        color: '#6E6E73',
         marginTop: 8,
-        marginBottom: 4,
+        marginBottom: 8,
+        lineHeight: 22,
     },
     waitTime: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '500',
-        color: '#000',
-        marginTop: 6,
+        color: '#1C1C1E',
+        marginTop: 8,
     },
     divider: {
-        height: 1,
-        backgroundColor: '#E5D3A5',
-        marginVertical: 16,
+        height: 0.5,
+        backgroundColor: '#E5E5EA',
+        marginVertical: 14,
     },
     bottomRow: {
         flexDirection: 'row',
@@ -186,47 +196,53 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     verticalDivider: {
-        width: 1,
+        width: 0.5,
         height: 50,
-        backgroundColor: '#E5D3A5',
-        marginHorizontal: 10,
+        backgroundColor: '#E5E5EA',
+        marginHorizontal: 16,
     },
     label: {
-        fontSize: 14,
-        color: '#777',
-        marginBottom: 4,
+        fontSize: 12,
+        color: '#8E8E93',
+        marginBottom: 6,
+        fontWeight: '400',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     value: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#000',
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#1C1C1E',
+        marginTop: 4,
+        letterSpacing: -0.3,
     },
     checkboxRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 4,
+        marginTop: 8,
     },
     checkbox: {
         width: 24,
         height: 24,
         borderRadius: 6,
         borderWidth: 2,
-        borderColor: '#777',
+        borderColor: '#C9A961',
         backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 8,
+        marginRight: 10,
     },
     checkboxSelected: {
-        backgroundColor: '#4CAF50',
-        borderColor: '#4CAF50',
+        backgroundColor: '#C9A961',
+        borderColor: '#C9A961',
     },
     checkboxLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#000',
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#1C1C1E',
         flexShrink: 1,
+        letterSpacing: -0.2,
     },
 });
 

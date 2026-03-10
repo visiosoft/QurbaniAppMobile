@@ -8,3 +8,4 @@ export { default as EmptyState } from './EmptyState';
 export { default as QurbaniStatusCard } from './QurbaniStatusCard';
 export { default as PrayerTimeRow } from './PrayerTimeRow';
 export { default as NextPrayerCard } from './NextPrayerCard';
+export { default as HajjDayCard } from './HajjDayCard';

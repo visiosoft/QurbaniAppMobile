@@ -102,7 +102,8 @@ const authService = {
             console.log('🔄 authService.refreshUserProfile: Calling API...');
             const response = await apiClient.get(API_ENDPOINTS.GET_USER_PROFILE);
             console.log('📦 authService.refreshUserProfile: Response received');
-            const { user } = response.data;
+            // Backend returns { success: true, user: {...} }
+            const user = response.data.user;
             console.log('👤 authService.refreshUserProfile: User data:', JSON.stringify(user, null, 2));
 
             // Update stored user data

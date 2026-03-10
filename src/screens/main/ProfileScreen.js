@@ -225,6 +225,12 @@ const ProfileScreen = () => {
                     label="Account Type"
                     value={user?.accountType === ACCOUNT_TYPES.INDIVIDUAL ? 'Individual' : 'Group Representative'}
                 />
+                {user?.companyId?.companyName && (
+                    <InfoRow
+                        label="Company"
+                        value={user.companyId.companyName}
+                    />
+                )}
             </Card>
 
             {/* Notification Preferences Card */}

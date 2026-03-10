@@ -8,7 +8,7 @@ const COMPANY_PHONE = '+92 300 1234567';
 const COMPANY_EMAIL = 'info@qurbaniservices.com';
 const COMPANY_ADDRESS = 'Office #12, 2nd Floor, Haji Plaza, Karachi, Pakistan';
 
-const HelpInfoScreen = () => {
+const HelpInfoScreen = ({ navigation }) => {
     const showAlert = () => {
         Alert.alert(
             "Important Notice",
@@ -35,6 +35,20 @@ const HelpInfoScreen = () => {
                 <Ionicons name="alert-circle" size={22} color="#fff" style={{ marginRight: 8 }} />
                 <Text style={styles.alertButtonText}>Important: Please Read</Text>
             </TouchableOpacity>
+            
+            {/* Hajj Guide Button */}
+            <TouchableOpacity 
+                style={styles.hajjGuideButton} 
+                onPress={() => navigation.navigate('HajjGuide')}
+            >
+                <Ionicons name="moon" size={24} color="#C9A961" style={{ marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.hajjGuideTitle}>Complete Hajj Guide</Text>
+                    <Text style={styles.hajjGuideSubtitle}>Day-by-day Hajj procedure</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#C9A961" />
+            </TouchableOpacity>
+
             <Text style={styles.sectionTitle}>FAQs</Text>
             <View style={styles.faqBox}>
                 <Text style={styles.faqQ}>Q: What should I do after marking 'Proceed for Qurbani'?</Text>
@@ -102,6 +116,35 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    hajjGuideButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderRadius: 16,
+        marginVertical: 16,
+        alignSelf: 'stretch',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 1.5,
+        borderColor: '#F0EDE5',
+    },
+    hajjGuideTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#2E7D32',
+        marginBottom: 4,
+    },
+    hajjGuideSubtitle: {
+        fontSize: 13,
+        color: '#8E8E93',
     },
     faqBox: {
         backgroundColor: '#f0f8ff',

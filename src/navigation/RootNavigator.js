@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import MainNavigator from './MainNavigator';
 import HelpInfoScreen from '../screens/main/HelpInfoScreen';
+import HajjGuideScreen from '../screens/main/HajjGuideScreen';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { COLORS } from '../config/constants';
 
@@ -39,6 +40,11 @@ const RootNavigator = () => {
                     <>
                         <Stack.Screen name="Main" component={MainNavigator} />
                         <Stack.Screen name="HelpInfo" component={HelpInfoScreen} options={{ headerShown: true, title: 'Help & Info' }} />
+                        <Stack.Screen
+                            name="HajjGuide"
+                            component={HajjGuideScreen}
+                            options={{ headerShown: false }}
+                        />
                     </>
                 )}
             </Stack.Navigator>

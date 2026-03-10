@@ -332,23 +332,72 @@ const GroupMembersScreen = () => {
     const maxAllowed = MAX_MEMBERS_PER_ANIMAL[user?.qurbaniType];
     const canMarkMore = canMarkMoreReady();
 
+    // Calculate statistics
+    const completedCount = members.filter(m => (m.qurbaniStatus || m.status) === STATUS_TYPES.DONE).length;
+    const readyCount = members.filter(m => (m.qurbaniStatus || m.status) === STATUS_TYPES.READY).length;
+    const pendingCount = members.filter(m => (m.qurbaniStatus || m.status) === STATUS_TYPES.PENDING).length;
+
     console.log('📊 Summary Stats:');
     console.log('   - User Qurbani Type:', user?.qurbaniType);
     console.log('   - Max Allowed:', maxAllowed);
     console.log('   - Current Ready:', currentReady);
     console.log('   - Can Mark More:', canMarkMore);
     console.log('   - Total Members:', members.length);
+    console.log('   - Completed:', completedCount);
+    console.log('   - Ready:', readyCount);
+    console.log('   - Pending:', pendingCount);
 
     return (
         <View style={styles.container}>
-            {/* Summary Header */}
-            <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { textAlign: 'center', width: '100%', fontSize: 17, fontWeight: 'bold', lineHeight: 28 }]}>
-                        لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لَا شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لَا شَرِيكَ لَكَ
-                    </Text>
+            {/* Qurbani Status Section */}
+            <View style={styles.statsCard}>
+                <View style={styles.statsHeader}>
+                    <Ionicons name="stats-chart" size={20} color={COLORS.primary} />
+                    <Text style={styles.statsTitle}>Qurbani Status</Text>
                 </View>
 
+                <View style={styles.statsGrid}>
+                    <View style={styles.statItem}>
+                        <View style={[styles.statIconContainer, { backgroundColor: '#4CAF50' }]}>
+                            <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                        </View>
+                        <Text style={styles.statValue}>{completedCount}</Text>
+                        <Text style={styles.statLabel}>Completed</Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <View style={[styles.statIconContainer, { backgroundColor: '#FFA726' }]}>
+                            <Ionicons name="alert-circle" size={24} color="#fff" />
+                        </View>
+                        <Text style={styles.statValue}>{readyCount}</Text>
+                        <Text style={styles.statLabel}>Ready</Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <View style={[styles.statIconContainer, { backgroundColor: '#FF9800' }]}>
+                            <Ionicons name="time-outline" size={24} color="#fff" />
+                        </View>
+                        <Text style={styles.statValue}>{pendingCount}</Text>
+                        <Text style={styles.statLabel}>Pending</Text>
+                    </View>
+
+                    <View style={styles.statItem}>
+                        <View style={[styles.statIconContainer, { backgroundColor: COLORS.primary }]}>
+                            <Ionicons name="people" size={24} color="#fff" />
+                        </View>
+                        <Text style={styles.statValue}>{members.length}</Text>
+                        <Text style={styles.statLabel}>Total</Text>
+                    </View>
+                </View>
+
+                {/* Qurbani Type Info */}
+                <View style={styles.typeInfoRow}>
+                    <Ionicons name="information-circle" size={18} color={COLORS.textSecondary} />
+                    <Text style={styles.typeInfoText}>
+                        Qurbani Type: <Text style={styles.typeInfoBold}>{QURBANI_TYPE_LABELS[user?.qurbaniType] || 'Not Set'}</Text>
+                        {' '}(Max: {maxAllowed} members)
+                    </Text>
+                </View>
             </View>
 
             {/* Members List */}
@@ -415,15 +464,28 @@ const GroupMembersScreen = () => {
                 }
                 contentContainerStyle={styles.listContent}
                 ListHeaderComponent={
-                    <View style={styles.headerContainer}>
-                        <Text style={styles.listHeader}>
-                            Total Members: {members.length}
-                        </Text>
-                        {selectedMembers.length > 0 && (
-                            <Text style={styles.selectedCount}>
-                                {selectedMembers.length} Selected
+                    <View>
+                        {/* Information Box */}
+                        <View style={styles.introCard}>
+                            <Ionicons name="information-circle" size={24} color={COLORS.primary} />
+                            <Text style={styles.introText}>
+                                This page shows all your family members for group Qurbani. Select pending members and proceed when ready for Qurbani.
                             </Text>
-                        )}
+                        </View>
+
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Family Members</Text>
+                        </View>
+                        <View style={styles.headerContainer}>
+                            <Text style={styles.listHeader}>
+                                Total Members: {members.length}
+                            </Text>
+                            {selectedMembers.length > 0 && (
+                                <Text style={styles.selectedCount}>
+                                    {selectedMembers.length} Selected
+                                </Text>
+                            )}
+                        </View>
                     </View>
                 }
             />
@@ -445,7 +507,7 @@ const GroupMembersScreen = () => {
                             <>
                                 <Ionicons name="checkmark-done" size={24} color="#fff" />
                                 <Text style={styles.fabText}>
-                                    Procced for Qurbani ({selectedMembers.length})
+                                    Proceed for Qurbani ({selectedMembers.length})
                                 </Text>
                                 <Ionicons name="arrow-forward" size={20} color="#fff" />
                             </>
@@ -477,6 +539,98 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 3.84,
         elevation: 3,
+    },
+    statsCard: {
+        backgroundColor: COLORS.surface,
+        padding: SPACING.md,
+        marginHorizontal: SPACING.md,
+        marginBottom: SPACING.md,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+        elevation: 3,
+    },
+    statsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: SPACING.md,
+        paddingBottom: SPACING.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    statsTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.textPrimary,
+        marginLeft: SPACING.xs,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: SPACING.md,
+    },
+    statItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    statIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: SPACING.xs,
+    },
+    statValue: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: COLORS.textPrimary,
+        marginTop: SPACING.xs,
+    },
+    statLabel: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        marginTop: 2,
+    },
+    typeInfoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: `${COLORS.primary}10`,
+        padding: SPACING.sm,
+        borderRadius: 8,
+    },
+    typeInfoText: {
+        fontSize: 13,
+        color: COLORS.textSecondary,
+        marginLeft: SPACING.xs,
+        flex: 1,
+    },
+    typeInfoBold: {
+        fontWeight: '600',
+        color: COLORS.primary,
+    },
+    introCard: {
+        backgroundColor: `${COLORS.primary}10`,
+        borderRadius: 12,
+        padding: 16,
+        marginHorizontal: SPACING.md,
+        marginBottom: SPACING.md,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        borderLeftWidth: 4,
+        borderLeftColor: COLORS.primary,
+    },
+    introText: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 14,
+        color: COLORS.textPrimary,
+        lineHeight: 22,
     },
     summaryRow: {
         flexDirection: 'row',
@@ -511,17 +665,28 @@ const styles = StyleSheet.create({
     listContent: {
         paddingBottom: 100, // Extra padding for floating button
     },
+    sectionHeader: {
+        paddingHorizontal: SPACING.md,
+        paddingTop: SPACING.md,
+        paddingBottom: SPACING.xs,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+        letterSpacing: -0.3,
+    },
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
+        paddingBottom: SPACING.sm,
     },
     listHeader: {
-        fontSize: FONT_SIZES.md,
-        fontWeight: '600',
-        color: COLORS.textPrimary,
+        fontSize: FONT_SIZES.sm,
+        fontWeight: '500',
+        color: COLORS.textSecondary,
     },
     selectedCount: {
         fontSize: FONT_SIZES.md,

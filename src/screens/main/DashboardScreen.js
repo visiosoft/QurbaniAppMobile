@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 // Helper to get remaining seconds from a timestamp
 function getRemainingSeconds(startTime, durationSeconds) {
     if (!startTime) return 0;
@@ -27,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import qurbaniService from '../../services/qurbaniService';
 import groupService from '../../services/groupService';
+import prayerService, { calculatePrayerTimes, getNextPrayer, formatTime } from '../../services/prayerService';
 import Button from '../../components/Button';
 import StatusBadge from '../../components/StatusBadge';
 import Loading from '../../components/Loading';
@@ -52,6 +54,7 @@ const DashboardScreen = ({ navigation }) => {
     const [isTypeConfirmed, setIsTypeConfirmed] = useState(false);
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [isProcessingMembers, setIsProcessingMembers] = useState(false);
+    const [nextPrayer, setNextPrayer] = useState(null);
     const timerRef = useRef(null);
 
     // Countdown timer effect (must be in component body, not inside any function)
@@ -67,6 +70,25 @@ const DashboardScreen = ({ navigation }) => {
             if (timerRef.current) clearInterval(timerRef.current);
         }
     }, [qurbaniData?.status, readyTimestamp]);
+
+    // Prayer times effect - Mecca coordinates for Hajj
+    useEffect(() => {
+        const updatePrayerTimes = () => {
+            try {
+                // Mecca coordinates: 21.4225°N, 39.8262°E
+                const prayerTimes = calculatePrayerTimes(21.4225, 39.8262);
+                const next = getNextPrayer(prayerTimes);
+                setNextPrayer(next);
+            } catch (error) {
+                console.error('Error calculating prayer times:', error);
+            }
+        };
+
+        updatePrayerTimes();
+        const prayerInterval = setInterval(updatePrayerTimes, 60000); // Update every minute
+
+        return () => clearInterval(prayerInterval);
+    }, []);
 
     const fetchQurbaniStatus = async (showLoader = true) => {
         try {
@@ -529,6 +551,8 @@ const DashboardScreen = ({ navigation }) => {
             }
         } else if (title === 'Help & Info') {
             navigation.navigate('HelpInfo');
+        } else if (title === 'Hajj Guide') {
+            navigation.navigate('HajjGuide');
         }
     };
 
@@ -539,35 +563,52 @@ const DashboardScreen = ({ navigation }) => {
                     <RefreshControl
                         refreshing={isRefreshing}
                         onRefresh={onRefresh}
-                        colors={[COLORS.primary]}
-                        tintColor={COLORS.primary}
+                        colors={['#C9A961', '#2E7D32']}
+                        tintColor="#C9A961"
                         showsVerticalScrollIndicator={false}
                     />
                 }>
 
-                {/* ================= BANNER ================= */}
-                <Image
-                    source={require('../../../assets/hajj.png')}
-                    style={styles.banner}
-                />
-
-                {/* ================= WELCOME ================= */}
-                <View style={styles.welcomeContainer}>
-                    <Text style={styles.welcomeText}>
-                        Welcome, {user?.name || 'Haji Family'}
-                    </Text>
-                    <Text style={styles.hajjYear}>Hajj {new Date().getFullYear()}</Text>
+                {/* ================= ISLAMIC HEADER WITH KAABA ICON ================= */}
+                <View style={styles.bannerContainer}>
+                    <Image
+                        source={require('../../../assets/hajj.png')}
+                        style={styles.banner}
+                    />
+                    {/* Overlay */}
+                    <View style={styles.bannerGradient}>
+                        <View style={styles.welcomeContainer}>
+                            {/* Kaaba Icon */}
+                            <View style={styles.kaabaIconContainer}>
+                                <Ionicons name="moon" size={36} color="#FFFFFF" />
+                            </View>
+                            {/* Islamic Greeting */}
+                            <Text style={styles.islamicGreeting}>As-salamu alaykum</Text>
+                            <Text style={styles.welcomeText}>
+                                {user?.name || 'Haji Family'}
+                            </Text>
+                            {user?.companyId?.companyName && (
+                                <Text style={styles.companyText}>
+                                    {user.companyId.companyName}
+                                </Text>
+                            )}
+                            <Text style={styles.hajjYear}>Hajj {new Date().getFullYear()}</Text>
+                        </View>
+                    </View>
                 </View>
 
                 {/* ================= ACTION BUTTONS ================= */}
                 <View style={styles.actionsRow}>
                     <ActionCard icon="person" title="My Profile" onPress={handleActionCardPress} />
-                    <ActionCard
-                        icon="people"
-                        title="Family Group"
-                        onPress={isIndividual ? undefined : handleActionCardPress}
-                        disabled={isIndividual}
-                    />
+                    {isIndividual ? (
+                        <ActionCard icon="moon" title="Hajj Guide" onPress={handleActionCardPress} />
+                    ) : (
+                        <ActionCard
+                            icon="people"
+                            title="Family Group"
+                            onPress={handleActionCardPress}
+                        />
+                    )}
                     <ActionCard icon="information-circle" title="Help & Info" onPress={handleActionCardPress} />
                 </View>
 
@@ -612,20 +653,6 @@ const DashboardScreen = ({ navigation }) => {
                                         : 'Tick the checkbox to confirm your Qurbani type. Proceed for qurbani once you are ready.\n\nجب آپ تیار ہوں تو قربانی کے عمل کے لیے آگے بڑھیں'
                             }
                         />
-
-                        {/* Action */}
-                        {canMarkReady && (
-                            <Pressable
-                                onPress={handleMarkReady}
-                                style={({ pressed }) => [
-                                    styles.proceedButton,
-                                    pressed && { opacity: 0.7 }
-                                ]}
-                            >
-                                <Text style={styles.proceedText}>Proceed for Qurbani</Text>
-                                <Ionicons name="chevron-forward" size={22} color="#fff" />
-                            </Pressable>
-                        )}
                     </>
                 )}
 
@@ -633,8 +660,44 @@ const DashboardScreen = ({ navigation }) => {
 
 
                 {/* ================= HISTORY / FAMILY MEMBERS ================= */}
-                {user?.accountType === 'group' && groupMembers.length > 0 ? (
+                {user?.accountType === 'group' && groupMembers.length > 0 && (
                     <View style={styles.membersSection}>
+                        {/* Next Prayer Time Card */}
+                        {nextPrayer && (
+                            <View style={styles.nextPrayerCard}>
+                                <View style={styles.nextPrayerHeader}>
+                                    <Ionicons name="moon-outline" size={20} color="#C9A961" />
+                                    <Text style={styles.nextPrayerLabel}>Next</Text>
+                                    <Text style={styles.nextPrayerName}>
+                                        {nextPrayer.name.charAt(0).toUpperCase() + nextPrayer.name.slice(1)}
+                                    </Text>
+                                </View>
+                                {nextPrayer.time && (
+                                    <Text style={styles.nextPrayerTime}>
+                                        {formatTime(nextPrayer.time)}
+                                    </Text>
+                                )}
+                            </View>
+                        )}
+
+                        {/* Hajj Guide Button */}
+                        <TouchableOpacity
+                            style={styles.hajjGuideButton}
+                            onPress={() => navigation.navigate('HajjGuide')}
+                            activeOpacity={0.8}
+                        >
+                            <View style={styles.hajjGuideContent}>
+                                <View style={styles.hajjGuideIconCircle}>
+                                    <Ionicons name="book" size={22} color="#FFFFFF" />
+                                </View>
+                                <View style={styles.hajjGuideTextContainer}>
+                                    <Text style={styles.hajjGuideTitle}>Complete Hajj Guide</Text>
+                                    <Text style={styles.hajjGuideSubtitle}>Day-by-day procedure</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#C9A961" />
+                            </View>
+                        </TouchableOpacity>
+
                         <View style={styles.membersSectionHeader}>
                             <Text style={styles.membersSectionTitle}>Family Members</Text>
                             {selectedMembers.length > 0 && (
@@ -691,56 +754,81 @@ const DashboardScreen = ({ navigation }) => {
                             );
                         })}
                     </View>
-                ) : (
-                    <View style={styles.historyCard}>
-                        <Text style={styles.historyTitle}>Status History</Text>
-
-                        <HistoryItem
-                            icon="checkmark-circle"
-                            color="#2ecc71"
-                            title="Jamarat Completed"
-                            subtitle="Ready for Qurbani"
-                            time="Just now"
-                        />
-
-                        <HistoryItem
-                            icon="alert-circle"
-                            color="#f39c12"
-                            title={`Qurbani: ${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
-                            subtitle={`${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
-                            time=""
-                            highlight={qurbaniData?.status === 'ready'}
-                        />
-                    </View>
                 )}
 
-                {/* Floating Action Button for Group Members */}
-                {user?.accountType === 'group' && selectedMembers.length > 0 && (
-                    <TouchableOpacity
-                        style={styles.floatingButton}
-                        onPress={handleProcessSelectedMembers}
-                        disabled={isProcessingMembers}
-                        activeOpacity={0.8}
-                    >
-                        <View style={styles.fabContent}>
-                            {isProcessingMembers ? (
-                                <>
-                                    <Text style={styles.fabText}>Processing...</Text>
-                                </>
-                            ) : (
-                                <>
-                                    <Ionicons name="checkmark-done" size={24} color="#fff" />
-                                    <Text style={styles.fabText}>
-                                        Procced for Qurbani ({selectedMembers.length})
-                                    </Text>
-                                    <Ionicons name="arrow-forward" size={20} color="#fff" />
-                                </>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                )}
+                {/* Status History - Always visible */}
+                <View style={styles.historyCard}>
+                    <Text style={styles.historyTitle}>Status History</Text>
+
+                    <HistoryItem
+                        icon="checkmark-circle"
+                        color="#2ecc71"
+                        title="Jamarat Completed"
+                        subtitle="Ready for Qurbani"
+                        time="Just now"
+                    />
+
+                    <HistoryItem
+                        icon="alert-circle"
+                        color="#f39c12"
+                        title={`Qurbani: ${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
+                        subtitle={`${qurbaniData?.status === 'ready' ? 'Requested' : (qurbaniData?.status || STATUS_TYPES.PENDING)}`}
+                        time=""
+                        highlight={qurbaniData?.status === 'ready'}
+                    />
+                </View>
 
             </ScrollView>
+
+            {/* Floating Proceed for Qurbani Button - Individual User */}
+            {isIndividual && canMarkReady && isTypeConfirmed && (
+                <TouchableOpacity
+                    style={styles.floatingProceedButton}
+                    onPress={handleMarkReady}
+                    disabled={isMarkingReady}
+                    activeOpacity={0.8}
+                >
+                    <View style={styles.proceedButtonContent}>
+                        {isMarkingReady ? (
+                            <>
+                                <Text style={styles.proceedButtonText}>Processing...</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Ionicons name="checkmark-done" size={24} color="#fff" />
+                                <Text style={styles.proceedButtonText}>Proceed for Qurbani</Text>
+                                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                            </>
+                        )}
+                    </View>
+                </TouchableOpacity>
+            )}
+
+            {/* Floating Proceed for Qurbani Button - Group User */}
+            {user?.accountType === 'group' && selectedMembers.length > 0 && (
+                <TouchableOpacity
+                    style={styles.floatingProceedButton}
+                    onPress={handleProcessSelectedMembers}
+                    disabled={isProcessingMembers}
+                    activeOpacity={0.8}
+                >
+                    <View style={styles.proceedButtonContent}>
+                        {isProcessingMembers ? (
+                            <>
+                                <Text style={styles.proceedButtonText}>Processing...</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Ionicons name="checkmark-done" size={24} color="#fff" />
+                                <Text style={styles.proceedButtonText}>
+                                    Proceed for Qurbani ({selectedMembers.length})
+                                </Text>
+                                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                            </>
+                        )}
+                    </View>
+                </TouchableOpacity>
+            )}
         </View>
     );
 };
@@ -750,15 +838,27 @@ const DashboardScreen = ({ navigation }) => {
 const ActionCard = ({ icon, title, onPress, disabled }) => (
     <Pressable
         style={({ pressed }) => [
-            styles.actionCard,
-            disabled && { backgroundColor: '#ccc' },
-            pressed && !disabled && { opacity: 0.7 }
+            styles.actionCardWrapper,
+            disabled && { opacity: 0.6 },
+            pressed && !disabled && { transform: [{ scale: 0.98 }] }
         ]}
         onPress={onPress ? () => onPress(title) : undefined}
         disabled={disabled}
     >
-        <Ionicons name={icon} size={32} color={disabled ? '#888' : '#fff'} />
-        <Text style={[styles.actionText, disabled && { color: '#888' }]}>{title}</Text>
+        <LinearGradient
+            colors={disabled ? ['#e8e8e8', '#e8e8e8'] : ['#FFF9E6', '#F3EDFF', '#E8FFF0']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.actionCard}
+        >
+            <View style={[
+                styles.iconCircle,
+                disabled && { backgroundColor: '#ccc' }
+            ]}>
+                <Ionicons name={icon} size={24} color={disabled ? '#888' : '#fff'} />
+            </View>
+            <Text style={[styles.actionText, disabled && { color: '#999' }]}>{title}</Text>
+        </LinearGradient>
     </Pressable>
 );
 
@@ -797,7 +897,7 @@ const HistoryItem = ({ icon, color, title, subtitle, time, highlight }) => (
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f2f2f2',
+        backgroundColor: '#F9F9F9',
     },
 
     /* HEADER */
@@ -849,78 +949,163 @@ const styles = StyleSheet.create({
     },
 
     /* BANNER */
+    bannerContainer: {
+        position: 'relative',
+        width: '100%',
+        height: 240,
+    },
+
     banner: {
         width: '100%',
-        height: 180,
+        height: 240,
+        position: 'absolute',
+    },
+
+    bannerGradient: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '100%',
+        backgroundColor: 'rgba(46, 125, 50, 0.25)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+
+    kaabaIconContainer: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        borderWidth: 0,
+    },
+
+    islamicGreeting: {
+        fontSize: 15,
+        fontWeight: '400',
+        color: '#FFFFFF',
+        marginBottom: 6,
+        letterSpacing: 0.5,
+        opacity: 0.9,
     },
 
     /* WELCOME */
     welcomeContainer: {
         alignItems: 'center',
-        marginVertical: 15,
+        paddingBottom: 20,
     },
 
     welcomeText: {
-        fontSize: 20,
+        fontSize: 34,
         fontWeight: '600',
-        color: '#333',
+        color: '#ffffff',
+        marginTop: 4,
+        letterSpacing: 0.3,
+    },
+
+    companyText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#C9A961',
+        marginTop: 4,
+        letterSpacing: 0.5,
+        opacity: 0.95,
     },
 
     hajjYear: {
-        color: '#2e8b57',
-        marginTop: 4,
-        fontWeight: '600',
+        color: '#C9A961',
+        marginTop: 10,
+        fontWeight: '500',
+        fontSize: 16,
+        letterSpacing: 0.5,
+        opacity: 0.95,
     },
 
     /* ACTIONS */
     actionsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 12,
+        paddingHorizontal: 20,
+        marginTop: -50,
+        marginBottom: 30,
+        zIndex: 10,
+    },
+
+    actionCardWrapper: {
+        flex: 1,
+        marginHorizontal: 5,
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
     },
 
     actionCard: {
-        flex: 1,
-        backgroundColor: '#2e8b57',
-        marginHorizontal: 6,
-        paddingVertical: 18,
-        borderRadius: 12,
+        paddingVertical: 24,
+        borderRadius: 16,
         alignItems: 'center',
-        elevation: 3,
-        cursor: 'pointer',
-        userSelect: 'none',
     },
 
     actionText: {
-        color: '#fff',
-        marginTop: 8,
-        fontWeight: '600',
+        color: '#1C1C1E',
+        marginTop: 10,
+        fontWeight: '500',
+        fontSize: 11,
+        letterSpacing: -0.1,
+    },
+
+    iconCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#2E7D32',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     /* BUTTON */
     proceedButton: {
-        backgroundColor: '#2e8b57',
-        marginHorizontal: 16,
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: '#C9A961',
+        marginHorizontal: 20,
+        marginVertical: 16,
+        padding: 18,
+        borderRadius: 14,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        cursor: 'pointer',
-        userSelect: 'none',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        elevation: 3,
     },
 
     proceedText: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginRight: 6,
+        fontSize: 17,
+        fontWeight: '600',
+        marginRight: 8,
+        letterSpacing: -0.3,
     },
 
     /* HISTORY */
     historyCard: {
         backgroundColor: '#fff',
-        margin: 16,
+        marginHorizontal: 16,
+        marginTop: 8,
+        marginBottom: 16,
         borderRadius: 12,
         padding: 16,
     },
@@ -1018,8 +1203,103 @@ const styles = StyleSheet.create({
 
     /* MEMBERS SECTION */
     membersSection: {
-        marginTop: 10,
+        marginTop: 12,
         paddingBottom: 100, // Extra padding for floating button
+    },
+
+    nextPrayerCard: {
+        marginHorizontal: 20,
+        marginBottom: 16,
+        padding: 16,
+        borderRadius: 12,
+        backgroundColor: '#2E7D32',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    nextPrayerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+
+    nextPrayerLabel: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.8)',
+        marginLeft: 6,
+        fontWeight: '400',
+    },
+
+    nextPrayerName: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#FFFFFF',
+        marginLeft: 8,
+        letterSpacing: -0.2,
+    },
+
+    nextPrayerTime: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#C9A961',
+        letterSpacing: 0.3,
+    },
+
+    hajjGuideButton: {
+        marginHorizontal: 20,
+        marginBottom: 16,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+
+    hajjGuideContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 14,
+    },
+
+    hajjGuideIconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#2E7D32',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+
+    hajjGuideTextContainer: {
+        flex: 1,
+    },
+
+    hajjGuideTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1C1C1E',
+        marginBottom: 2,
+        letterSpacing: -0.2,
+    },
+
+    hajjGuideSubtitle: {
+        fontSize: 12,
+        color: '#8E8E93',
+        fontWeight: '400',
     },
 
     membersSectionHeader: {
@@ -1027,36 +1307,57 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 16,
+        marginBottom: 8,
     },
 
     membersSectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#333',
+        fontSize: 28,
+        fontWeight: '600',
+        color: '#1C1C1E',
+        letterSpacing: -0.3,
     },
 
     selectedCount: {
         fontSize: 14,
-        fontWeight: 'bold',
-        color: '#2e8b57',
-        backgroundColor: '#2e8b5720',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
+        fontWeight: '700',
+        color: '#667eea',
+        backgroundColor: '#e8eaf6',
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 16,
     },
 
     memberCardWrapper: {
         marginBottom: 10,
     },
 
-    /* FLOATING BUTTON */
-    floatingButton: {
+    /* PROCEED BUTTON */
+    proceedButton: {
+        backgroundColor: '#C9A961',
+        borderRadius: 14,
+        paddingVertical: 18,
+        paddingHorizontal: 24,
+        marginHorizontal: 20,
+        marginTop: 20,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 5,
+    },
+
+    /* FLOATING PROCEED BUTTON */
+    floatingProceedButton: {
         position: 'absolute',
         bottom: 20,
         left: 20,
         right: 20,
-        backgroundColor: '#2e8b57',
+        backgroundColor: '#C9A961',
         borderRadius: 30,
         paddingVertical: 16,
         paddingHorizontal: 24,
@@ -1066,22 +1367,22 @@ const styles = StyleSheet.create({
             height: 4,
         },
         shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowRadius: 12,
         elevation: 8,
-        zIndex: 1000,
     },
 
-    fabContent: {
+    proceedButtonContent: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
     },
 
-    fabText: {
+    proceedButtonText: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 17,
+        fontWeight: '600',
+        letterSpacing: -0.3,
     },
 });
 

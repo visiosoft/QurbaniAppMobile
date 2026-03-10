@@ -1,30 +1,32 @@
 export const COLORS = {
-    // Primary colors
-    primary: '#1B5E20',
+    // Primary colors - Islamic Gold & Green Theme (Apple-style)
+    primary: '#2E7D32',
     primaryLight: '#4CAF50',
-    primaryDark: '#0D3C15',
+    primaryDark: '#1B5E20',
+    gold: '#C9A961',
+    goldDark: '#B89952',
 
     // Status colors
     pending: '#FF9800',
-    ready: '#f32121',
+    ready: '#C9A961',
     done: '#4CAF50',
 
-    // UI colors
-    background: '#F5F5F5',
+    // UI colors - Apple-style
+    background: '#F9F9F9',
     surface: '#FFFFFF',
-    error: '#F44336',
-    warning: '#FF9800',
-    success: '#4CAF50',
-    info: '#2196F3',
+    error: '#FF3B30',
+    warning: '#FF9500',
+    success: '#34C759',
+    info: '#007AFF',
 
-    // Text colors
-    textPrimary: '#212121',
-    textSecondary: '#757575',
+    // Text colors - Apple SF
+    textPrimary: '#1C1C1E',
+    textSecondary: '#8E8E93',
     textLight: '#FFFFFF',
 
-    // Border colors
-    border: '#E0E0E0',
-    divider: '#BDBDBD',
+    // Border colors - Apple-style
+    border: '#E5E5EA',
+    divider: '#C6C6C8',
 };
 
 export const SPACING = {

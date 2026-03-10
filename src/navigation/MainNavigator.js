@@ -1,7 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../config/constants';
 
 // Import screens
@@ -17,14 +18,28 @@ const Tab = createBottomTabNavigator();
 
 /**
  * Custom Header Component for Dashboard
- * Modern single-line design
+ * Modern gradient design with Islamic styling
  */
 const DashboardHeader = () => {
     return (
         <View style={headerStyles.container}>
-            <Ionicons name="moon" size={24} color="#FFD700" style={headerStyles.icon} />
+            <MaterialCommunityIcons name="sheep" size={28} color="#C9A961" style={headerStyles.icon} />
             <Text style={headerStyles.title}>Qurbani Mate</Text>
         </View>
+    );
+};
+
+/**
+ * Custom Header Background with Gradient
+ */
+const HeaderBackground = () => {
+    return (
+        <LinearGradient
+            colors={['#2E7D32', '#1B5E20', '#0D3C15']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ flex: 1 }}
+        />
     );
 };
 
@@ -38,10 +53,11 @@ const headerStyles = StyleSheet.create({
         marginRight: 8,
     },
     title: {
-        fontSize: 20,
-        fontWeight: 'bold',
+        fontSize: 22,
+        fontWeight: '700',
         color: '#FFFFFF',
-        letterSpacing: 0.5,
+        letterSpacing: 1.2,
+        fontFamily: Platform.OS === 'ios' ? 'Damascus' : 'serif',
     },
 });
 
@@ -81,12 +97,16 @@ const MainNavigator = () => {
                     paddingTop: 5,
                     height: 60,
                 },
+                headerBackground: () => <HeaderBackground />,
                 headerStyle: {
-                    backgroundColor: COLORS.primary,
+                    elevation: 0,
+                    shadowOpacity: 0,
                 },
                 headerTintColor: COLORS.textLight,
                 headerTitleStyle: {
-                    fontWeight: 'bold',
+                    fontWeight: '700',
+                    fontSize: 18,
+                    letterSpacing: 0.5,
                 },
             })}
         >
@@ -95,8 +115,8 @@ const MainNavigator = () => {
                 component={DashboardScreen}
                 options={{
                     headerTitle: () => <DashboardHeader />,
+                    headerBackground: () => <HeaderBackground />,
                     headerStyle: {
-                        backgroundColor: '#1F7A4C',
                         elevation: 0,
                         shadowOpacity: 0,
                         borderBottomWidth: 0,
